@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(sgx_cmake)
 
-option(BUILD_SAMPLE "Build sample" OFF)
-if(BUILD_SAMPLE)
-    add_subdirectory(sample)
-endif()
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/" ${CMAKE_MODULE_PATH})
+list(APPEND CMAKE_MODULE_PATH ${DIDA_SOURCE_DIR}/cmake)
+
+add_subdirectory(sample)

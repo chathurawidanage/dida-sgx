@@ -29,14 +29,12 @@
  *
  */
 
-enclave {
-    include "sgx_eid.h"
-    from "../LocalAttestationCode/LocalAttestationCode.edl" import *;
-    from "sgx_tstdc.edl" import *;
-    trusted{
-        public uint32_t test_create_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-        public uint32_t test_enclave_to_enclave_call(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-        public uint32_t test_message_exchange(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-        public uint32_t test_close_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-    };
-};
+#include "../Enclave.h"
+#include "Enclave_t.h"
+
+void ecall_add_bf(int *bf, int len) {
+  printf("received a bf of size %d", len);
+  for (int x = 0; x < len; x++) {
+    printf("no %d : %d", x, bf[x]);
+  }
+}
