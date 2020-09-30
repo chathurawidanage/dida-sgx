@@ -34,6 +34,10 @@
 enclave {
 
     trusted {
-		public void ecall_add_bf([in, size=len] int* bf, int len);
+        public void ecall_start_dispatch();
+        public void ecall_load_bf([in, size=len] char* data, long len);
+        public void ecall_load_data([in, size=len] char* data, int len);
+        public void ecall_finalize_dispatch();
+        public void ecall_print_bf_summary(void);
     };
 };

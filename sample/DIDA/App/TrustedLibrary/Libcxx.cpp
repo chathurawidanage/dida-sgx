@@ -33,4 +33,16 @@
 #include "../App.h"
 #include "Enclave_u.h"
 #include <thread>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+
+struct faqRec {
+  std::string readHead;
+  std::string readSeq;
+  std::string readQual;
+};
+
 

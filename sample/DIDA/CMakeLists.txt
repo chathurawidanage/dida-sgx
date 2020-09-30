@@ -13,7 +13,8 @@ else ()
     set(LDS Enclave/Enclave_debug.lds)
 endif ()
 add_trusted_library(trusted_lib SRCS ${T_SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
-add_enclave_library(enclave SRCS ${E_SRCS} TRUSTED_LIBS trusted_lib EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS} LDSCRIPT ${LDS})
+add_enclave_library(enclave SRCS ${E_SRCS} TRUSTED_LIBS trusted_lib
+        EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS} LDSCRIPT ${LDS} ${DIDA_INCLUDE_DIR})
 enclave_sign(enclave KEY Enclave/Enclave_private.pem CONFIG Enclave/Enclave.config.xml)
 
 set(SRCS App/App.cpp

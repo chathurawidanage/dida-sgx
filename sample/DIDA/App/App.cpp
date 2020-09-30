@@ -4,6 +4,7 @@
 
 # include <unistd.h>
 # include <pwd.h>
+#include <iostream>
 # define MAX_PATH FILENAME_MAX
 
 #include "sgx_urts.h"
@@ -199,7 +200,6 @@ void ocall_print_string(const char *str) {
   printf("%s", str);
 }
 
-
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
   (void) (argc);
@@ -217,18 +217,36 @@ int SGX_CDECL main(int argc, char *argv[]) {
   /* Utilize trusted libraries */
   //ecall_libcxx_functions();
 
+  std::cout << "Loading bloom filters" << std::endl;
+  std::vector<std::vector<bool> *> bfs = dida_build_bf(argc, argv);
+  std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
 
-  //std::vector<std::vector<bool>> bfs = dida_build_bf(argc, argv);
+  for (int x = 0; x < bfs.size(); x++) {
+    std::cout << "Encoding " << x << "th bfx" << std::endl;
+    std::vector<bool> *bf = bfs[x];
+    long bf_size = bf->size();
 
-  int x[] = {1, 2, 24};
-
-  printf("before calling ecall\n");
-  sgx_status_t ret = ecall_add_bf(global_eid, &x[0], 3);
-  if (ret != SGX_SUCCESS) {
-    printf("after successfully calling ecall\n");
-  } else {
-    printf("after failed calling ecall\n");
+    std::cout << "BF size :  " << bf_size << std::endl;
+    long char_arr_size = (bf_size / 8) + 1;
+    char *bf_data = new char[char_arr_size];
+    std::cout << "array size :  " << bf_size << std::endl;
+    std::cout << "Encoding a bf of size " << bf->size() << std::endl;
+    for (long i = 0; i < bf_size;) {
+      char val = 0;
+      for (int b = 0; b < 8 && i < bf_size; b++, i++) {
+        val |= (bf->at(i) << b);
+      }
+      bf_data[i / 8] = val;
+    }
+    delete bf;
+    std::cout << "Sending a bf of size " << char_arr_size << " to the encalve..." << std::endl;
+    sgx_status_t ret = ecall_load_bf(global_eid, bf_data, char_arr_size);
+    if (ret != SGX_SUCCESS) {
+      std::cerr << "Failed to add bloom filter to enclave" << std::endl;
+    }
   }
+
+  ecall_print_bf_summary(global_eid);
 
   /* Destroy the enclave */
   sgx_destroy_enclave(global_eid);
