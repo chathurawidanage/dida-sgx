@@ -1,0 +1,137 @@
+time ./didasgx -p12 -b16 MT-human.fa
+Loading bloom filters
+version v2
+num-hash=5
+bit-item=8
+bmer-step=5
+bmer=16
+alen=20
+reuse-bf=0
+Loading bloom filters from file
+Created if stream. P num : 12
+Loaded a vector of size 2181395640
+Loaded a vector of size 2181386920
+Loaded a vector of size 2181392536
+Loaded a vector of size 2181396256
+Loaded a vector of size 2181396056
+Loaded a vector of size 2181395360
+Loaded a vector of size 2181396144
+Loaded a vector of size 2181394792
+Loaded a vector of size 2181393664
+Loaded a vector of size 2181396320
+Loaded a vector of size 2181395352
+Loaded a vector of size 2181297920
+loaded bloom filters...
+Running time in sec: 106.749
+Returning vectors of size : 12
+Done loading bloom filters of length : 12
+Encoding 0th bfx
+BF size :  2181395640
+array size :  2181395640
+Encoding a bf of size 2181395640
+Sending a bf of size 272674456 to the encalve...
+adding a bloom filter of size : 272674456
+Encoding 1th bfx
+BF size :  2181386920
+array size :  2181386920
+Encoding a bf of size 2181386920
+Sending a bf of size 272673366 to the encalve...
+adding a bloom filter of size : 272673366
+Encoding 2th bfx
+BF size :  2181392536
+array size :  2181392536
+Encoding a bf of size 2181392536
+Sending a bf of size 272674068 to the encalve...
+adding a bloom filter of size : 272674068
+Encoding 3th bfx
+BF size :  2181396256
+array size :  2181396256
+Encoding a bf of size 2181396256
+Sending a bf of size 272674533 to the encalve...
+adding a bloom filter of size : 272674533
+Encoding 4th bfx
+BF size :  2181396056
+array size :  2181396056
+Encoding a bf of size 2181396056
+Sending a bf of size 272674508 to the encalve...
+adding a bloom filter of size : 272674508
+Encoding 5th bfx
+BF size :  2181395360
+array size :  2181395360
+Encoding a bf of size 2181395360
+Sending a bf of size 272674421 to the encalve...
+adding a bloom filter of size : 272674421
+Encoding 6th bfx
+BF size :  2181396144
+array size :  2181396144
+Encoding a bf of size 2181396144
+Sending a bf of size 272674519 to the encalve...
+adding a bloom filter of size : 272674519
+Encoding 7th bfx
+BF size :  2181394792
+array size :  2181394792
+Encoding a bf of size 2181394792
+Sending a bf of size 272674350 to the encalve...
+adding a bloom filter of size : 272674350
+Encoding 8th bfx
+BF size :  2181393664
+array size :  2181393664
+Encoding a bf of size 2181393664
+Sending a bf of size 272674209 to the encalve...
+adding a bloom filter of size : 272674209
+Encoding 9th bfx
+BF size :  2181396320
+array size :  2181396320
+Encoding a bf of size 2181396320
+Sending a bf of size 272674541 to the encalve...
+adding a bloom filter of size : 272674541
+Encoding 10th bfx
+BF size :  2181395352
+array size :  2181395352
+Encoding a bf of size 2181395352
+Sending a bf of size 272674420 to the encalve...
+adding a bloom filter of size : 272674420
+Encoding 11th bfx
+BF size :  2181297920
+array size :  2181297920
+Encoding a bf of size 2181297920
+Sending a bf of size 272662241 to the encalve...
+adding a bloom filter of size : 272662241
+No of bloom filters : 12
+	Size of bf 272674456
+	Size of bf 272673366
+	Size of bf 272674068
+	Size of bf 272674533
+	Size of bf 272674508
+	Size of bf 272674421
+	Size of bf 272674519
+	Size of bf 272674350
+	Size of bf 272674209
+	Size of bf 272674541
+	Size of bf 272674420
+	Size of bf 272662241
+num-hash=5
+bit-item=8
+bmer-step=-107
+bmer=128
+alen=20
+pnum=2
+Dispatching file : MT-human.fa
+Initialized dispatch with pnum 2
+Dispatch file length: 16580
+Dispatching read of length : 16580, pnum: 2
+Done filling buffers
+Processing partition 0 having 1 buffers
+Processing bmer 0
+Get canon...
+Checking bloomfilter v2...
+Processing partition 1 having 1 buffers
+Processing bmer 0
+Get canon...
+Checking bloomfilter v2...
+
+Info: DIDASGX successfully returned.
+
+real	3m43.142s
+user	3m8.752s
+sys	0m33.106s
