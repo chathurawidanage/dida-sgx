@@ -5,8 +5,12 @@ include_directories(SYSTEM "${DIDA_INCLUDE_DIR}")
 
 set(EDL_SEARCH_PATHS Enclave Enclave/TrustedLibrary)
 
+unset(SGX_HW)
+message("SGX HW : ${SGX_HW}")
+
+
 set(E_SRCS Enclave/Enclave.cpp)
-set(T_SRCS Enclave/TrustedLibrary/Libcxx.cpp)
+set(T_SRCS Enclave/TrustedLibrary/LibcxxDsp.cpp Enclave/TrustedLibrary/LibcxxMrg.cpp)
 if (SGX_HW AND SGX_MODE STREQUAL "Release")
     set(LDS Enclave/Enclave.lds)
 else ()
@@ -18,7 +22,8 @@ add_enclave_library(enclave SRCS ${E_SRCS} TRUSTED_LIBS trusted_lib
 enclave_sign(enclave KEY Enclave/Enclave_private.pem CONFIG Enclave/Enclave.config.xml)
 
 set(SRCS App/App.cpp
-        App/TrustedLibrary/Libcxx.cpp)
+        App/TrustedLibrary/LibcxxDsp.cpp
+        App/TrustedLibrary/LibcxxMrg.cpp)
 add_untrusted_executable(didasgx SRCS ${SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
 add_dependencies(didasgx enclave-sign)
 target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl)

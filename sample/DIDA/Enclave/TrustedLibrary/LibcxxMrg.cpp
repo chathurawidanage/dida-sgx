@@ -28,29 +28,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <libcxx/string>
+#include <libcxx/vector>
+#include "../Enclave.h"
+#include "Enclave_t.h"
 
-/* Enclave.edl - Top EDL file. */
+std::vector<std::string*> samFiles;
+std::string lReads;
 
-enclave {
-    
-
-    /* Import ECALL/OCALL from sub-directory EDLs.
-     *  [from]: specifies the location of EDL file. 
-     *  [import]: specifies the functions to import, 
-     *  [*]: implies to import all functions.
-     */
-      
-    from "TrustedLibrary/LibcxxDsp.edl" import *;
-    from "TrustedLibrary/LibcxxMrg.edl" import *;
-    from "sgx_tstdc.edl" import sgx_thread_wait_untrusted_event_ocall, sgx_thread_set_untrusted_event_ocall, sgx_thread_setwait_untrusted_events_ocall, sgx_thread_set_multiple_untrusted_events_ocall;
-
-    /* 
-     * ocall_print_string - invokes OCALL to display string buffer inside the enclave.
-     *  [in]: copy the string buffer to App outside.
-     *  [string]: specifies 'str' is a NULL terminated buffer.
-     */
-    untrusted {
-        void ocall_print_string([in, string] const char *str);
-    };
-
-};
+void ecall_load_sam(unsigned char* data, long char_len, int pid) {
+  std::string* sam = new std::string(data);
+  samFiles.push_back(sam);
+}
+void ecall_load_sam_lreads(unsigned char* data, long char_len) {
+}
+void ecall_finalize_merge() {
+}
