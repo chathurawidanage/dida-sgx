@@ -37,7 +37,7 @@ std::vector<std::string*> samFiles;
 std::string lReads;
 
 void ecall_load_sam(unsigned char* data, long char_len, int pid) {
-  std::string* sam = new std::string(data);
+  std::string* sam = new std::string(reinterpret_cast<char*>(data));
   samFiles.push_back(sam);
 }
 void ecall_load_sam_lreads(unsigned char* data, long char_len) {
