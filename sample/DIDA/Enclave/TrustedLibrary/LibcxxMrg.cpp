@@ -9,12 +9,15 @@ std::vector<char*> samFiles;
 
 unsigned int cntgCount = 0;
 unsigned int readCount = 0;
+int pCount = 0;
 
 char newline_delim[] = "\n";
 
-void ecall_init_merge(unsigned int maxCt, unsigned int maxRd) {
+void ecall_init_merge(unsigned int maxCt, unsigned int maxRd, 
+                unsigned int ps, unsigned char* alnName, long len) {
     cntgCount = maxCt;
     readCount = maxRd;
+    pCount = ps;
 }
 
 void fordMer(const int pNum, const std::string& alignerName) {
@@ -62,14 +65,18 @@ void fordMer(const int pNum, const std::string& alignerName) {
         bool samVal = false;
         for (unsigned j = 0; j < ordList[i].size(); ++j) {
             line = strtok_r(samFiles[ordList[i][j] - 1], newline_delim, &saved_ptrs[i]);
-            std::istringstream iss(line);
-            iss>>readId>>colChar>>readHead>>bitFg;
+            std::string* line_str = new std::string(line);
+            printf("Found line %s",line);
+            // std::istringstream iss(line);
+            // iss>>readId>>colChar>>readHead>>bitFg;
             if (bitFg!=4) {
                 samVal=true;
-                size_t pos = line.find_first_of(":");
-                comFile<<line.substr(pos+1, std::string::npos)<<"\n";
+                size_t pos = line_str->find_first_of(":");
+                comFile.append(line_str->substr(pos+1, std::string::npos));
+                comFile.append("\n");
                 //comFile << line << "\n";
             }
+            delete line_str;
         }
         if (!samVal) {
             comFile.append(readHead).append("\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n");

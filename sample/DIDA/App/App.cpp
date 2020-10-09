@@ -12,6 +12,7 @@
 #include "App.h"
 #include "Enclave_u.h"
 #include "TrustedLibrary/LibcxxDsp.h"
+#include "TrustedLibrary/LibcxxMrg.h"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
 
@@ -192,8 +193,10 @@ int SGX_CDECL main(int argc, char *argv[]) {
     if (dida_command.compare(dida_dsp) == 0) {
         dsp(argc, argv, global_eid);
     } else if (dida_command.compare(dida_mrg) == 0) {
+        mrg(argc, argv, global_eid);
     } else {
         //unknown command
+        printf("Unknown command %s", dida_command.c_str());
     }
 
     /* Utilize trusted libraries */

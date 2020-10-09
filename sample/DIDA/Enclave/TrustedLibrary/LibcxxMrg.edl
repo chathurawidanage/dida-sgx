@@ -34,13 +34,10 @@
 enclave {
 
     trusted {
-        public void ecall_init_merge([in]unsigned int maxCont, [in]unsigned int maxRead);
+        public void ecall_init_merge(unsigned int maxCont, unsigned int maxRead, 
+                unsigned int pNum, [in, size=len] unsigned char* alnName, long len);
         public void ecall_load_sam([in, size=char_len] unsigned char* data, long char_len, int pid);
         public void ecall_load_sam_lreads([in, size=char_len] unsigned char* data, long char_len);
         public void ecall_finalize_merge();
     };
-
-    untrusted{
-        public void ocall_getInf([out] unsigned int &maxCont, [out] unsigned int &maxRead);
-    }
 };

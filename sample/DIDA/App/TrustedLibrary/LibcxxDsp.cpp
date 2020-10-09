@@ -28,21 +28,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <stdio.h>
+#include "LibcxxDsp.h"
 
 #include <getopt.h>
-#include "Enclave_u.h"
+#include <stdio.h>
+
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <thread>
 #include <vector>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
-#include "LibcxxDsp.h"
+
+#include "Enclave_u.h"
 #include "dsp.h"
 
-void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid){
-  std::cout << "Loading bloom filters..." << std::endl;
+void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
+    std::cout << "Loading bloom filters..." << std::endl;
     std::vector<std::vector<bool> *> bfs = dida_build_bf(argc, argv);
     std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
 
@@ -189,5 +191,3 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid){
         std::cerr << "Failed to dispatch file : " << ret << std::endl;
     }
 }
-
-
