@@ -1,46 +1,98 @@
-/*
- * Copyright (C) 2011-2017 Intel Corporation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
 #include <libcxx/string>
 #include <libcxx/vector>
+#include <libcxx/sstream>
+
 #include "../Enclave.h"
 #include "Enclave_t.h"
 
-std::vector<std::string*> samFiles;
-std::string lReads;
+std::vector<char*> samFiles;
+
+unsigned int cntgCount = 0;
+unsigned int readCount = 0;
+
+char newline_delim[] = "\n";
+
+void ecall_init_merge(unsigned int maxCt, unsigned int maxRd) {
+    cntgCount = maxCt;
+    readCount = maxRd;
+}
+
+void fordMer(const int pNum, const std::string& alignerName) {
+    std::string mapStr(alignerName);
+
+    printf("Maximum target ID=%d\nTotal number of queries=%d\n", cntgCount, readCount);
+
+    std::vector<std::vector<uint8_t> > ordList(readCount);
+
+    unsigned int readId, bitFg;
+    std::string readHead, headSQ;
+
+    char* line = nullptr;
+    // First pass, Reading
+    int headEnd[pNum];
+    for (int i = 0; i < pNum; ++i) {
+        headEnd[i] = 0;
+        line = strtok(samFiles[i], newline_delim);
+        while (line != nullptr) {
+            if (line[0] != '@') break;
+            ++headEnd[i];
+        }
+        // inserting SAM info into ordList
+        do {
+            char** endptr;
+            readId = std::strtol(line, endptr, 10);
+            ordList[readId].push_back((uint8_t)(i + 1));
+            line = strtok(NULL, newline_delim);
+        } while (line != nullptr);
+    }
+
+    // Second pass, Writing
+    std::string comFile = "";
+    std::vector<char*> saved_ptrs(pNum);
+
+    for (int i = 0; i < pNum; ++i) {
+        //Discarding @
+        for (int j = 0; j < headEnd[i]; ++j) {
+            line = strtok_r(samFiles[i], newline_delim, &saved_ptrs[i]);
+        }
+    }
+
+    char colChar;
+    for (unsigned i = 0; i < readCount; ++i) {
+        bool samVal = false;
+        for (unsigned j = 0; j < ordList[i].size(); ++j) {
+            line = strtok_r(samFiles[ordList[i][j] - 1], newline_delim, &saved_ptrs[i]);
+            std::istringstream iss(line);
+            iss>>readId>>colChar>>readHead>>bitFg;
+            if (bitFg!=4) {
+                samVal=true;
+                size_t pos = line.find_first_of(":");
+                comFile<<line.substr(pos+1, std::string::npos)<<"\n";
+                //comFile << line << "\n";
+            }
+        }
+        if (!samVal) {
+            comFile.append(readHead).append("\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n");
+        }
+    }
+
+    printf("Final SAM : \n\n%s", comFile);
+}
 
 void ecall_load_sam(unsigned char* data, long char_len, int pid) {
-  std::string* sam = new std::string(reinterpret_cast<char*>(data));
-  samFiles.push_back(sam);
+    samFiles.push_back(reinterpret_cast<char*>(data));
+    if (pid != samFiles.size()) {
+        printf("Something wrong. Expected the sam file from process %d", pid);
+    }
 }
+
 void ecall_load_sam_lreads(unsigned char* data, long char_len) {
+    samFiles.push_back(reinterpret_cast<char*>(data));
 }
+
 void ecall_finalize_merge() {
+    cntgCount = 0;
+    readCount = 0;
+
+    samFiles.clear();
 }
