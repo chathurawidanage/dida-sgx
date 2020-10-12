@@ -268,6 +268,10 @@ void dispatchRead(char *sequence, int seq_len) {
     printf("rdFile %d content : \n\n", i);
     printf(rdFiles[i].c_str());
     printf("\n\n");
+
+    std::string file_name = "mread-"+std::to_string(i)+".fa";
+
+    ocall_print_file(rdFiles[i].c_str(),file_name.c_str());
   }
 }
 

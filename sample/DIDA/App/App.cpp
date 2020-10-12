@@ -175,6 +175,23 @@ void ocall_print_string(const char *str) {
     printf("%s", str);
 }
 
+void ocall_print_file(const char *str, const char *file) {
+    std::ofstream stream;
+
+    stream.open(std::string(file));
+
+    std::cout << "Writing to file " << std::string(file) << std::endl;
+    if (!stream)
+        std::cout << "Opening file failed" << std::endl;
+    // use operator<< for clarity
+    stream << std::string(str) << std::endl;
+    // test if write was succesful - not *really* necessary
+    if (!stream)
+        std::cout << "Write failed" << std::endl;
+
+    stream.close();
+}
+
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
     (void)(argc);
