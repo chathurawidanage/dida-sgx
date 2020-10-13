@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -15,6 +16,8 @@
 #include "TrustedLibrary/LibcxxMrg.h"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
+
+using namespace std::chrono;
 
 /* DIDA modes*/
 std::string dida_dsp = "dsp";
@@ -175,10 +178,10 @@ void ocall_print_string(const char *str) {
     printf("%s", str);
 }
 
-void ocall_print_file(const char *str, const char *file) {
+void ocall_print_file(const char *str, const char *file, int append) {
     std::ofstream stream;
 
-    stream.open(std::string(file));
+    stream.open(std::string(file), append == 0 ? std::ofstream::out : std::ofstream::app);
 
     std::cout << "Writing to file " << std::string(file) << std::endl;
     if (!stream)
@@ -197,12 +200,19 @@ int SGX_CDECL main(int argc, char *argv[]) {
     (void)(argc);
     (void)(argv);
 
+    auto start = high_resolution_clock::now();
+
     /* Initialize the enclave */
     if (initialize_enclave() < 0) {
         printf("Enter a character before exit ...\n");
         getchar();
         return -1;
     }
+
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(stop - start);
+
+    printf("Enclave initialized in %dms\n", duration);
 
     // determining the DIDA command
     std::string dida_command = std::string(argv[1]);
@@ -218,9 +228,16 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     /* Utilize trusted libraries */
 
-    printf("Info: DIDASGX successfully returned.\n");
+    stop = high_resolution_clock::now();
+    duration = duration_cast<milliseconds>(stop - start);
+    printf("Info: DIDASGX successfully returned in %dms.\n", duration);
 
     /* Destroy the enclave */
+    start = high_resolution_clock::now();
     sgx_destroy_enclave(global_eid);
+    stop = high_resolution_clock::now();
+    duration = duration_cast<milliseconds>(stop - start);
+    printf("Info: Enclave Destroyed in %dms.\n", duration);
+
     return 0;
 }

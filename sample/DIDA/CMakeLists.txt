@@ -5,7 +5,6 @@ include_directories(SYSTEM "${DIDA_INCLUDE_DIR}")
 
 set(EDL_SEARCH_PATHS Enclave Enclave/TrustedLibrary)
 
-unset(SGX_HW)
 message("SGX HW : ${SGX_HW}")
 
 

@@ -260,6 +260,8 @@ void dispatchRead(char *sequence, int seq_len) {
   printf("\n\n");
 
   printf("imFile content : \n\n");
+  std::string max_inf = "maxinf";
+  ocall_print_file(imdFile.c_str(),max_inf.c_str(),1);
   printf(imdFile.c_str());
   printf("\n\n");
 
@@ -271,7 +273,7 @@ void dispatchRead(char *sequence, int seq_len) {
 
     std::string file_name = "mread-"+std::to_string(i)+".fa";
 
-    ocall_print_file(rdFiles[i].c_str(),file_name.c_str());
+    ocall_print_file(rdFiles[i].c_str(),file_name.c_str(),0);
   }
 }
 

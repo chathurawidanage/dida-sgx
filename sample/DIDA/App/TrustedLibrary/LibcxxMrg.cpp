@@ -1,22 +1,26 @@
 #include "LibcxxMrg.h"
-#include <iostream>
+
+#include <cstring>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+
 #include "Enclave_u.h"
 
 void getInf(unsigned &maxCont, unsigned &maxRead) {
     std::ifstream infoFile("maxinf");
-    if (infoFile.good()){
+    if (infoFile.good()) {
         infoFile >> maxCont >> maxRead;
-    }else {
+    } else {
         std::cerr << "Info file not exist!\n";
         exit(1);
     }
-    if (maxCont==0 || maxRead==0) {
+    if (maxCont == 0 || maxRead == 0) {
         std::cerr << "Error in info file!\n";
         exit(1);
     }
     infoFile.close();
+    printf("Read maxinf %d, %d\n", maxCont, maxRead);
 }
 
 void mrg(int argc, char *argv[], sgx_enclave_id_t global_eid) {
@@ -31,15 +35,19 @@ void mrg(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     printf("Partitions : %d\nAligner : %s\n", pNum, aligner.c_str());
 
     getInf(maxCount, maxRead);
+    printf("Our of reading maxinf %d, %d\n", maxCount, maxRead);
 
-    ecall_init_merge(global_eid, maxCount, maxRead, pNum, (unsigned char*)aligner.c_str(),aligner.size());
+    ecall_init_merge(global_eid, maxCount, maxRead, pNum, (unsigned char *)aligner.c_str(), aligner.size());
 
     // read sam files
     for (int i = 0; i < pNum; ++i) {
-        std::ifstream t("aln-" + std::to_string(i + 1) + ".sam");
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string str = buffer.str();
-        ecall_load_sam(global_eid, (unsigned char*)(str.c_str()),str.size(), i);
+        std::ifstream file("aln-" + std::to_string(i + 1) + ".sam");
+        std::string str((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+        printf("loading sam file of size %d\n", str.size());
+        ecall_load_sam(global_eid, (char *)str.c_str(), str.size() + 1, i);
     }
+
+    // now do the merging
+    ecall_finalize_merge(global_eid);
 }
