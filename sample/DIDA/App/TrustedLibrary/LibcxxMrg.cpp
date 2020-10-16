@@ -44,7 +44,7 @@ void mrg(int argc, char *argv[], sgx_enclave_id_t global_eid) {
         std::ifstream file("aln-" + std::to_string(i + 1) + ".sam");
         std::string str((std::istreambuf_iterator<char>(file)),
                         std::istreambuf_iterator<char>());
-        printf("loading sam file of size %d\n", str.size());
+        printf("loading sam file of size %ld \n", str.size());
         ecall_load_sam(global_eid, (char *)str.c_str(), str.size() + 1, i);
     }
 

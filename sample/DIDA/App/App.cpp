@@ -212,7 +212,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
 
-    printf("Enclave initialized in %dms\n", duration);
+    printf("Enclave initialized in %ld ms\n", duration.count());
 
     // determining the DIDA command
     std::string dida_command = std::string(argv[1]);
@@ -230,14 +230,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     stop = high_resolution_clock::now();
     duration = duration_cast<milliseconds>(stop - start);
-    printf("Info: DIDASGX successfully returned in %dms.\n", duration);
+    printf("Info: DIDASGX successfully returned in %ld ms.\n", duration.count());
 
     /* Destroy the enclave */
     start = high_resolution_clock::now();
     sgx_destroy_enclave(global_eid);
     stop = high_resolution_clock::now();
     duration = duration_cast<milliseconds>(stop - start);
-    printf("Info: Enclave Destroyed in %dms.\n", duration);
+    printf("Info: Enclave Destroyed in %ld ms.\n", duration.count());
 
     return 0;
 }

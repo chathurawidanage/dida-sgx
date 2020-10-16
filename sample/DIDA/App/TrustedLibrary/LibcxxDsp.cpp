@@ -181,13 +181,47 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
                          fq,
                          pnum);
 
-    std::ifstream t(argv[argc - 1]);
-    std::string str((std::istreambuf_iterator<char>(t)),
-                    std::istreambuf_iterator<char>());
+    std::ifstream input_files_list(argv[argc - 1]);
 
-    std::cerr << "Dispatch file length: " << str.size() << std::endl;
-    sgx_status_t ret = ecall_load_data(global_eid, const_cast<char *>(str.c_str()), str.length());
-    if (ret != SGX_SUCCESS) {
-        std::cerr << "Failed to dispatch file : " << ret << std::endl;
+    if (se) {
+        // single ended
+
+        // reading file
+        std::string file_name;
+        std::getline(input_files_list, file_name);
+
+        std::ifstream input_file(file_name);
+
+        std::string str((std::istreambuf_iterator<char>(input_file)),
+                        std::istreambuf_iterator<char>());
+
+        std::cerr << "Dispatch file length: " << str.size() << std::endl;
+        sgx_status_t ret = ecall_load_data(global_eid, const_cast<char *>(str.c_str()), str.length());
+        if (ret != SGX_SUCCESS) {
+            std::cerr << "Failed to dispatch file : " << ret << std::endl;
+        }
+    } else {
+        // paired ended
+        std::string file_name_1;
+        std::string file_name_2;
+        std::getline(input_files_list, file_name_1);
+        std::getline(input_files_list, file_name_2);
+
+        std::ifstream input_file1(file_name_1);
+        std::ifstream input_file2(file_name_2);
+
+        std::string str1((std::istreambuf_iterator<char>(input_file1)),
+                         std::istreambuf_iterator<char>());
+
+        std::string str2((std::istreambuf_iterator<char>(input_file2)),
+                         std::istreambuf_iterator<char>());
+
+        std::cerr << "Dispatch file lengths: " << str1.size() << "," << str2.size() << std::endl;
+        sgx_status_t ret = ecall_load_data2(global_eid,
+                                            const_cast<char *>(str1.c_str()), str1.length(),
+                                            const_cast<char *>(str2.c_str()), str2.length());
+        if (ret != SGX_SUCCESS) {
+            std::cerr << "Failed to dispatch file : " << ret << std::endl;
+        }
     }
 }
