@@ -101,7 +101,7 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     int bmer = 16;
     int bmer_step = -1;
     int nhash = 5;
-    int se = 0;
+    int se = 1;
     int fq = 0;
     int pnum = 12;
     unsigned threads = 0;

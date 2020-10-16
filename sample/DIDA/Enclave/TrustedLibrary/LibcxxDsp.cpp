@@ -166,6 +166,13 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
     size_t buffSize = 4000000;
     std::vector<std::string> rdFiles(pnum, "");
 
+    std::vector<char *> sequences;
+    sequences.push_back(sequence1);
+
+    if (!se) {
+        sequences.push_back(sequence2);
+    }
+
     std::string msFile;
     std::string imdFile;
 
@@ -179,7 +186,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
         readValid = false;
         // set up readBuff
         std::vector<faqRec> readBuffer;  // fixed-size to improve performance
-        char *line = strtok(sequence1, delim);
+        char *line = strtok(sequences[fileNo], delim);
         while (line != nullptr) {
             readHead = line;
             line = strtok(NULL, delim);
@@ -220,6 +227,9 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
             //printf("readSeq : %s\n", readSeq.c_str());
 
             line = strtok(NULL, delim);
+            if (line == nullptr && !se) {  // move to next file
+                line = strtok(sequences[fileNo], delim);
+            }
         }
 
         printf("Done filling buffers\n");
@@ -239,7 +249,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
                     std::string bMer = bRead.readSeq.substr(j, bmer);
                     //printf("Get canon...\n");
                     getCanon(bMer);
-                    //printf("Checking bloomfilter v2...\n");
+                    //printf("Checking bloomfilter v2... %s\n", bMer);
                     // todo optimize here
                     if (filContain(bloom_filters, pIndex, bMer)) {
                         //printf("Checked bloomfilter...\n");
@@ -252,6 +262,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
                     }
                 }
             }
+            printf("End of outer while loop\n");
         }  // end dispatch buffer
         for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
             if (!dspRead[bIndex])
