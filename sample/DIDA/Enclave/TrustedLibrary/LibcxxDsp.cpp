@@ -239,7 +239,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
         int pIndex;
         std::vector<bool> dspRead(buffSize, false);
         for (pIndex = 0; pIndex < pnum; ++pIndex) {
-            printf("Processing partition %d having %d buffers\n", pIndex, readBuffer.size());
+            //printf("Processing partition %d having %d buffers\n", pIndex, readBuffer.size());
             for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
                 faqRec bRead = readBuffer[bIndex];
                 size_t readLen = bRead.readSeq.length();
@@ -273,22 +273,22 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
 
     imdFile.append(std::to_string(readId)).append("\n");
 
-    printf("\n\n");
-    printf("msFile content : \n\n");
-    printf(msFile.c_str());
-    printf("\n\n");
+    //printf("\n\n");
+    //printf("msFile content : \n\n");
+    //printf(msFile.c_str());
+    //printf("\n\n");
 
-    printf("imFile content : \n\n");
+    //printf("imFile content : \n\n");
     std::string max_inf = "maxinf";
     ocall_print_file(imdFile.c_str(), max_inf.c_str(), 1);
-    printf(imdFile.c_str());
-    printf("\n\n");
+    //printf(imdFile.c_str());
+    //printf("\n\n");
 
     printf("printing %d rdFiles %d...\n", rdFiles.size(), pnum);
     for (int i = 0; i < rdFiles.size(); i++) {
-        printf("rdFile %d content : \n\n", i);
-        printf(rdFiles[i].c_str());
-        printf("\n\n");
+        //printf("rdFile %d content : \n\n", i);
+        //printf(rdFiles[i].c_str());
+        //printf("\n\n");
 
         std::string file_name = "mread-" + std::to_string(i) + ".fa";
 
@@ -359,6 +359,6 @@ void ecall_load_bf(unsigned char *data, long len, long bf_len) {
 void ecall_print_bf_summary() {
     printf("No of bloom filters : %d\n", bloom_filters.size());
     for (int i = 0; i < bloom_filters.size(); i++) {
-        printf("\tSize of bf %l\n", bloom_filters[i]->size());
+        printf("\tSize of bf %ld\n", bloom_filters[i]->size());
     }
 }
