@@ -48,6 +48,7 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     std::vector<std::vector<bool> *> bfs = dida_build_bf(argc, argv);
     std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
 
+    
     for (int x = 0; x < bfs.size(); x++) {
         std::cout << "Encoding " << x << "th bfx" << std::endl;
         std::vector<bool> *bf = bfs[x];
@@ -56,8 +57,8 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
         std::cout << "BF size :  " << bf_size << std::endl;
         long char_arr_size = (bf_size / 8) + 1;
         unsigned char *bf_data = new unsigned char[char_arr_size];
-        std::cout << "array size :  " << bf_size << std::endl;
-        std::cout << "Encoding a bf of size " << bf->size() << std::endl;
+        //std::cout << "array size :  " << bf_size << std::endl;
+        //std::cout << "Encoding a bf of size " << bf->size() << std::endl;
         for (long i = 0; i < bf_size;) {
             unsigned char val = 0b00000000;
             for (int b = 7; b > -1 && i < bf_size; b--, i++) {
@@ -65,17 +66,17 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
             }
             bf_data[(i / 8) - 1] = val;
         }
-        printf("\n\n Sent\n\n");
-        for (int i = 0; i < 40; i++) {
-            printf("%s", bf->at(i) ? "1" : "0");
-        }
-        printf("\n");
+        // printf("\n\n Sent\n\n");
+        // for (int i = 0; i < 40; i++) {
+        //     printf("%s", bf->at(i) ? "1" : "0");
+        // }
+        // printf("\n");
 
-        printf("\n\n Sent Chars\n\n");
-        for (int i = 0; i < 5; i++) {
-            printf("%d,", bf_data[i]);
-        }
-        printf("\n");
+        // printf("\n\n Sent Chars\n\n");
+        // for (int i = 0; i < 5; i++) {
+        //     printf("%d,", bf_data[i]);
+        // }
+        // printf("\n");
 
         delete bf;
         std::cout << "Sending a bf of size " << char_arr_size << " to the encalve..." << std::endl;
@@ -101,7 +102,7 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     int bmer = 16;
     int bmer_step = -1;
     int nhash = 5;
-    int se = 1;
+    int se = 0;
     int fq = 0;
     int pnum = 12;
     unsigned threads = 0;
@@ -126,9 +127,9 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     bool die = false;
     std::string blPath;
 
+    optind = 1; // reset optid
     for (int c; (c = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1;) {
         std::istringstream arg(optarg != NULL ? optarg : "");
-        std::cout << "PARAM " << c << std::endl;
         switch (c) {
             case '?':
                 die = true;
