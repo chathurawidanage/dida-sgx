@@ -179,11 +179,12 @@ void ocall_print_string(const char *str) {
 }
 
 void ocall_print_file(const char *str, const char *file, int append) {
+    std::cout << "Writing to file " << std::string(file) << std::endl;
+
     std::ofstream stream;
 
     stream.open(std::string(file), append == 0 ? std::ofstream::out : std::ofstream::app);
 
-    std::cout << "Writing to file " << std::string(file) << std::endl;
     if (!stream)
         std::cout << "Opening file failed" << std::endl;
     // use operator<< for clarity

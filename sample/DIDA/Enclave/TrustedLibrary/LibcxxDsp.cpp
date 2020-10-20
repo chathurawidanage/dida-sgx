@@ -164,7 +164,12 @@ void getCanon(std::string &bMer) {
 
 void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) {
     size_t buffSize = 4000000;
-    std::vector<std::string> rdFiles(pnum, "");
+
+    std::vector<std::string *> rdFiles;
+
+    for (int i = 0; i < pnum; i++) {
+        rdFiles.push_back(new std::string(""));
+    }
 
     std::vector<char *> sequences;
     sequences.push_back(sequence1);
@@ -181,17 +186,26 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
 
     char delim[] = "\n";
 
+    std::vector<char *> saved_ptrs(sequences.size());
+    std::vector<bool> saved_ptrs_init(sequences.size());
+    for (int i = 0; i < sequences.size(); i++) {
+        saved_ptrs[i] = sequences[i];
+        saved_ptrs_init[i] = false;
+    }
+
     bool readValid = true;
+    printf("Starting outer loop...\n");
     while (readValid) {
         readValid = false;
         // set up readBuff
-        std::vector<faqRec> readBuffer;  // fixed-size to improve performance
+        std::vector<faqRec *> readBuffer;  // fixed-size to improve performance
         //printf("Processing file %d\n", fileNo);
-        char *line = strtok(sequences[fileNo], delim);
+        char *line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
+        saved_ptrs_init[fileNo] = true;
         while (line != nullptr) {
             readHead = line;
             //printf("Head of file no %d : %s\n", fileNo, readHead);
-            line = strtok(NULL, delim);
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
             if (line != nullptr) {
                 readSeq = line;
             } else {
@@ -199,18 +213,18 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
                 continue;
             }
             std::transform(readSeq.begin(), readSeq.end(), readSeq.begin(), ::toupper);
-            line = strtok(NULL, delim);
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
             if (line != nullptr) {
                 readDir = line;
             }
 
-            line = strtok(NULL, delim);
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
             if (line != nullptr) {
                 readQual = line;
             }
 
             readHead[0] = ':';
-            faqRec rRec;
+            faqRec *rRec = new faqRec;
 
             std::string hstm;
             if (!fq) {
@@ -218,22 +232,29 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
             } else {
                 hstm.append("@").append(std::to_string(readId)).append(readHead);
             };
-            rRec.readHead = hstm;
-            rRec.readSeq = readSeq;
-            rRec.readQual = readQual;
+            rRec->readHead = hstm;
+            rRec->readSeq = readSeq;
+            rRec->readQual = readQual;
             readBuffer.push_back(rRec);
+
+            //printf("readHead from file %d : %s\n", fileNo, hstm.c_str());
+            //printf("readSeq from file %d : %s\n", fileNo,readSeq.c_str());
+
             if (!se) fileNo = (fileNo + 1) % 2;
             ++readId;
             if (readBuffer.size() == buffSize) break;
 
-            //printf("readHead : %s\n", hstm.c_str());
-            //printf("readSeq : %s\n", readSeq.c_str());
-
-            line = strtok(NULL, delim);
-            if (line == nullptr && !se && fileNo == 1) {  // move to next file
-                printf("File no at the end : %d\n", fileNo);
-                line = strtok(sequences[fileNo], delim);
+            if (saved_ptrs_init[fileNo]) {
+                line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
+            } else {
+                line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
+                saved_ptrs_init[fileNo] = true;
             }
+            // line = strtok(NULL, delim);
+            // if (line == nullptr && !se && fileNo == 1) {  // move to next file
+            //     printf("File no at the end : %d\n", fileNo);
+            //     line = strtok(sequences[fileNo], delim);
+            // }
         }
 
         printf("Done filling buffers\n");
@@ -246,13 +267,13 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
             //printf("Processing partition %d having %d buffers\n", pIndex, readBuffer.size());
             for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
                 //printf("Processing read buff %d\n", bIndex);
-                faqRec bRead = readBuffer[bIndex];
-                size_t readLen = bRead.readSeq.length();
+                faqRec *bRead = readBuffer[bIndex];
+                size_t readLen = bRead->readSeq.length();
                 //printf("Seq len  %d\n", readLen);
                 //size_t j=0;
                 for (size_t j = 0; j <= readLen - bmer; j += bmer_step) {
                     //printf("Processing bmer %d\n", j);
-                    std::string bMer = bRead.readSeq.substr(j, bmer);
+                    std::string bMer = bRead->readSeq.substr(j, bmer);
                     //printf("Get canon...\n");
                     getCanon(bMer);
                     //printf("Checking bloomfilter v2... %s, pNum : %d \n", bMer, pIndex);
@@ -261,9 +282,9 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
                         //printf("Checked bloomfilter...\n");
                         dspRead[bIndex] = true;
                         if (!fq)
-                            rdFiles[pIndex].append(bRead.readHead).append("\n").append(bRead.readSeq).append("\n");
+                            rdFiles[pIndex]->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n");
                         else
-                            rdFiles[pIndex].append(bRead.readHead).append("\n").append(bRead.readSeq).append("\n+\n").append(bRead.readQual).append("\n");
+                            rdFiles[pIndex]->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n+\n").append(bRead->readQual).append("\n");
                         break;
                     }
                 }
@@ -271,7 +292,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
         }  // end dispatch buffer
         for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
             if (!dspRead[bIndex])
-                msFile.append(readBuffer[bIndex].readHead.substr(1, std::string::npos))
+                msFile.append(readBuffer[bIndex]->readHead.substr(1, std::string::npos))
                     .append("\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n");
         }
 
@@ -293,13 +314,13 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
 
     printf("printing %d rdFiles %d...\n", rdFiles.size(), pnum);
     for (int i = 0; i < rdFiles.size(); i++) {
-        //printf("rdFile %d content : \n\n", i);
-        //printf(rdFiles[i].c_str());
-        //printf("\n\n");
+        // printf("rdFile %d content : \n\n", i);
+        // printf(rdFiles[i]->c_str());
+        // printf("\n\n");
 
         std::string file_name = "mread-" + std::to_string(i) + ".fa";
-        printf("Doing ocall to write to file : %s\n", file_name);
-        ocall_print_file(rdFiles[i].c_str(), file_name.c_str(), 0);
+        printf("Doing ocall to write to file : %s, Size : %d\n", file_name, rdFiles[i]->size());
+        print_file(file_name.c_str(), 0, rdFiles[i]->c_str());
     }
 }
 

@@ -39,6 +39,8 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+#include <chrono> 
+using namespace std::chrono; 
 
 #include "Enclave_u.h"
 #include "dsp.h"
@@ -48,7 +50,9 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
     std::vector<std::vector<bool> *> bfs = dida_build_bf(argc, argv);
     std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
 
-    
+
+    auto start = high_resolution_clock::now();
+
     for (int x = 0; x < bfs.size(); x++) {
         std::cout << "Encoding " << x << "th bfx" << std::endl;
         std::vector<bool> *bf = bfs[x];
@@ -90,6 +94,12 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
 
         printf("\n");
     }
+
+    auto stop = high_resolution_clock::now();
+
+    auto duration = duration_cast<milliseconds>(stop - start); 
+
+    std::cout << "Bloomfilter transfering took : "<<duration.count() <<"ms"<< std::endl; 
 
     ecall_print_bf_summary(global_eid);
 
