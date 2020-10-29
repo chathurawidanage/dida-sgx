@@ -38,7 +38,7 @@ execute_process(
         COMMAND "./autogen.sh"
         WORKING_DIRECTORY ${DIDA_ROOT}/dida)
 execute_process(
-        COMMAND "./configure" "--with-mpi=/u/cdwidana/opt/openmpi-4.0.5/build"
+        COMMAND "./configure" "--with-mpi=$ENV{MPI_HOME}"
         WORKING_DIRECTORY ${DIDA_ROOT}/dida)
 execute_process(
         COMMAND "make"
