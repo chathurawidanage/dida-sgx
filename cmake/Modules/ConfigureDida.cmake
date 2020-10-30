@@ -32,13 +32,15 @@ execute_process(
 message("Building DIDA")
 
 # Find MPI
-#find_package(MPI REQUIRED)
+find_package(MPI REQUIRED)
+
+
 
 execute_process(
         COMMAND "./autogen.sh"
         WORKING_DIRECTORY ${DIDA_ROOT}/dida)
 execute_process(
-        COMMAND "./configure"
+        COMMAND "./configure --with-mpi=${MPI_CXX_LIBRARIES}"
         WORKING_DIRECTORY ${DIDA_ROOT}/dida)
 execute_process(
         COMMAND "make"

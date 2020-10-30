@@ -1,8 +1,9 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-include(ConfigureDida)
-include_directories(SYSTEM "${DIDA_INCLUDE_DIR}")
+# include(ConfigureDida)
+# include_directories(SYSTEM "${DIDA_INCLUDE_DIR}")
 
+include_directories(SYSTEM Common)
 set(EDL_SEARCH_PATHS Enclave Enclave/TrustedLibrary)
 
 message("SGX HW : ${SGX_HW}")
@@ -22,7 +23,11 @@ enclave_sign(enclave KEY Enclave/Enclave_private.pem CONFIG Enclave/Enclave.conf
 
 set(SRCS App/App.cpp
         App/TrustedLibrary/LibcxxDsp.cpp
-        App/TrustedLibrary/LibcxxMrg.cpp)
+        App/TrustedLibrary/LibcxxMrg.cpp
+        Common/dsp.cpp
+        Common/Uncompress.cpp
+        Common/SignalHandler.cpp
+        Common/Fcontrol.cpp)
 add_untrusted_executable(didasgx SRCS ${SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
 add_dependencies(didasgx enclave-sign)
 target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl)
