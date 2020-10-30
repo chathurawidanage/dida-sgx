@@ -32,7 +32,7 @@ execute_process(
 message("Building DIDA")
 
 # Find MPI
-find_package(MPI REQUIRED)
+#find_package(MPI REQUIRED)
 
 execute_process(
         COMMAND "./autogen.sh"
