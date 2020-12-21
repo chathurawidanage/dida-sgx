@@ -6,9 +6,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 include_directories(SYSTEM Common)
 set(EDL_SEARCH_PATHS Enclave Enclave/TrustedLibrary)
 
-message("SGX HW : ${SGX_HW}")
-
-
 set(E_SRCS Enclave/Enclave.cpp)
 set(T_SRCS Enclave/TrustedLibrary/LibcxxDsp.cpp Enclave/TrustedLibrary/LibcxxMrg.cpp)
 if (SGX_HW AND SGX_MODE STREQUAL "Release")
@@ -30,4 +27,4 @@ set(SRCS App/App.cpp
         Common/Fcontrol.cpp)
 add_untrusted_executable(didasgx SRCS ${SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
 add_dependencies(didasgx enclave-sign)
-target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl)
+target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl fmt)

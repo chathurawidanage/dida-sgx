@@ -8,8 +8,8 @@
   <!-- <StackMinSize>0x100000</StackMinSize> -->
   <!-- <StackMaxSize>0x20000000</StackMaxSize> -->
   <!-- <StackMaxSize>0x80000000</StackMaxSize> -->
-  <StackMaxSize>0x10000000</StackMaxSize>
-  <HeapMaxSize>0x280000000</HeapMaxSize>
+  <StackMaxSize>0x10000</StackMaxSize>
+  <HeapMaxSize>0x280000</HeapMaxSize>
   <TCSNum>10</TCSNum>
   <TCSPolicy>1</TCSPolicy>
   <DisableDebug>0</DisableDebug>
