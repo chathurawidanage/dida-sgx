@@ -16,6 +16,7 @@
 #include "TrustedLibrary/LibcxxMrg.h"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
+#include "uuid.hpp"
 #include "worker.hpp"
 
 using namespace std::chrono;
@@ -27,8 +28,7 @@ std::string dida_mrg = "mrg";
 /* Global EID shared by multiple threads */
 sgx_enclave_id_t global_eid = 0;
 
-typedef struct _sgx_errlist_t
-{
+typedef struct _sgx_errlist_t {
     sgx_status_t err;
     const char *msg;
     const char *sug; /* Suggestion */
@@ -87,15 +87,12 @@ static sgx_errlist_t sgx_errlist[] = {
 };
 
 /* Check error conditions for loading enclave */
-void print_error_message(sgx_status_t ret)
-{
+void print_error_message(sgx_status_t ret) {
     size_t idx = 0;
     size_t ttl = sizeof sgx_errlist / sizeof sgx_errlist[0];
 
-    for (idx = 0; idx < ttl; idx++)
-    {
-        if (ret == sgx_errlist[idx].err)
-        {
+    for (idx = 0; idx < ttl; idx++) {
+        if (ret == sgx_errlist[idx].err) {
             if (NULL != sgx_errlist[idx].sug)
                 printf("Info: %s\n", sgx_errlist[idx].sug);
             printf("Error: %s\n", sgx_errlist[idx].msg);
@@ -112,8 +109,7 @@ void print_error_message(sgx_status_t ret)
  *   Step 2: call sgx_create_enclave to initialize an enclave instance
  *   Step 3: save the launch token if it is updated
  */
-int initialize_enclave(void)
-{
+int initialize_enclave(void) {
     char token_path[MAX_PATH] = {'\0'};
     sgx_launch_token_t token = {0};
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -126,31 +122,25 @@ int initialize_enclave(void)
     const char *home_dir = getpwuid(getuid())->pw_dir;
 
     if (home_dir != NULL &&
-        (strlen(home_dir) + strlen("/") + sizeof(TOKEN_FILENAME) + 1) <= MAX_PATH)
-    {
+        (strlen(home_dir) + strlen("/") + sizeof(TOKEN_FILENAME) + 1) <= MAX_PATH) {
         /* compose the token path */
         strncpy(token_path, home_dir, strlen(home_dir));
         strncat(token_path, "/", strlen("/"));
         strncat(token_path, TOKEN_FILENAME, sizeof(TOKEN_FILENAME) + 1);
-    }
-    else
-    {
+    } else {
         /* if token path is too long or $HOME is NULL */
         strncpy(token_path, TOKEN_FILENAME, sizeof(TOKEN_FILENAME));
     }
 
     FILE *fp = fopen(token_path, "rb");
-    if (fp == NULL && (fp = fopen(token_path, "wb")) == NULL)
-    {
+    if (fp == NULL && (fp = fopen(token_path, "wb")) == NULL) {
         printf("Warning: Failed to create/open the launch token file \"%s\".\n", token_path);
     }
 
-    if (fp != NULL)
-    {
+    if (fp != NULL) {
         /* read the token from saved file */
         size_t read_num = fread(token, 1, sizeof(sgx_launch_token_t), fp);
-        if (read_num != 0 && read_num != sizeof(sgx_launch_token_t))
-        {
+        if (read_num != 0 && read_num != sizeof(sgx_launch_token_t)) {
             /* if token is invalid, clear the buffer */
             memset(&token, 0x0, sizeof(sgx_launch_token_t));
             printf("Warning: Invalid launch token read from \"%s\".\n", token_path);
@@ -159,8 +149,7 @@ int initialize_enclave(void)
     /* Step 2: call sgx_create_enclave to initialize an enclave instance */
     /* Debug Support: set 2nd parameter to 1 */
     ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, &token, &updated, &global_eid, NULL);
-    if (ret != SGX_SUCCESS)
-    {
+    if (ret != SGX_SUCCESS) {
         print_error_message(ret);
         if (fp != NULL)
             fclose(fp);
@@ -168,8 +157,7 @@ int initialize_enclave(void)
     }
 
     /* Step 3: save the launch token if it is updated */
-    if (updated == FALSE || fp == NULL)
-    {
+    if (updated == FALSE || fp == NULL) {
         /* if the token is not updated, or file handler is invalid, do not perform saving */
         if (fp != NULL)
             fclose(fp);
@@ -188,16 +176,14 @@ int initialize_enclave(void)
 }
 
 /* OCall functions */
-void ocall_print_string(const char *str)
-{
+void ocall_print_string(const char *str) {
     /* Proxy/Bridge will check the length and null-terminate
    * the input string to prevent buffer overflow.
    */
     printf("%s", str);
 }
 
-void ocall_print_file(const char *str, const char *file, int append)
-{
+void ocall_print_file(const char *str, const char *file, int append) {
     std::cout << "Writing to file " << std::string(file) << std::endl;
 
     std::ofstream stream;
@@ -216,16 +202,14 @@ void ocall_print_file(const char *str, const char *file, int append)
 }
 
 /* Application entry */
-int SGX_CDECL main(int argc, char *argv[])
-{
+int SGX_CDECL main(int argc, char *argv[]) {
     (void)(argc);
     (void)(argv);
 
     auto start = high_resolution_clock::now();
 
     /* Initialize the enclave */
-    if (initialize_enclave() < 0)
-    {
+    if (initialize_enclave() < 0) {
         return -1;
     }
 
@@ -234,28 +218,26 @@ int SGX_CDECL main(int argc, char *argv[])
 
     printf("Enclave initialized in %ld ms\n", duration.count());
 
-    // determining the DIDA command
-    std::string dida_command = std::string(argv[1]);
+    tasker::Worker worker(gen_random(16));
+    worker.OnMessage([&worker, &argc, &argv, &global_eid](std::string msg) {
+        // determining the DIDA command
+        std::string dida_command = msg;
 
-    if (dida_command.compare(dida_dsp) == 0)
-    {
-        dsp(argc, argv, global_eid);
-    }
-    else if (dida_command.compare(dida_mrg) == 0)
-    {
-        mrg(argc, argv, global_eid);
-    }
-    else
-    {
-        //unknown command
-        printf("Unknown command %s", dida_command.c_str());
-    }
+        if (dida_command.compare(dida_dsp) == 0) {
+            dsp(argc, argv, global_eid);
+        } else if (dida_command.compare(dida_mrg) == 0) {
+            mrg(argc, argv, global_eid);
+        } else {
+            //unknown command
+            printf("Unknown command %s", dida_command.c_str());
+        }
+    });
 
-    /* Utilize trusted libraries */
-
-    stop = high_resolution_clock::now();
-    duration = duration_cast<milliseconds>(stop - start);
-    printf("Info: DIDASGX successfully returned in %ld ms.\n", duration.count());
+    std::string server_url = "tcp://localhost:5050";
+    if (argc == 2) {
+        server_url = argv[1];
+    }
+    worker.Start(server_url);
 
     /* Destroy the enclave */
     start = high_resolution_clock::now();
