@@ -14,10 +14,12 @@
 #include "Enclave_u.h"
 #include "TrustedLibrary/LibcxxDsp.h"
 #include "TrustedLibrary/LibcxxMrg.h"
+#include "commands.hpp"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
 #include "uuid.hpp"
 #include "worker.hpp"
+#include "worker_types.hpp"
 
 using namespace std::chrono;
 
@@ -218,12 +220,13 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     printf("Enclave initialized in %ld ms\n", duration.count());
 
-    tasker::Worker worker(gen_random(16));
+    tasker::Worker worker(gen_random(16), TYPE_SECURE);
     worker.OnMessage([&worker, &argc, &argv, &global_eid](std::string msg) {
         // determining the DIDA command
-        std::string dida_command = msg;
+        std::string dida_command = msg.substr(0, 3);
 
         if (dida_command.compare(dida_dsp) == 0) {
+            auto dispatch_command = DispatchCommand(msg);
             dsp(argc, argv, global_eid);
         } else if (dida_command.compare(dida_mrg) == 0) {
             mrg(argc, argv, global_eid);
