@@ -1,4 +1,5 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+
 
 # include(ConfigureDida)
 # include_directories(SYSTEM "${DIDA_INCLUDE_DIR}")
@@ -27,4 +28,4 @@ set(SRCS App/App.cpp
         Common/Fcontrol.cpp)
 add_untrusted_executable(didasgx SRCS ${SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
 add_dependencies(didasgx enclave-sign)
-target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl fmt ${ZeroMQ_LIBRARY} spdlog::spdlog worker-lib tasker-common)
+target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl fmt ${ZeroMQ_LIBRARY} spdlog::spdlog worker-lib tasker-common commands)

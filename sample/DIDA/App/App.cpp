@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #include <unistd.h>
 
 #include <chrono>
@@ -17,6 +17,7 @@
 #include "commands.hpp"
 #include "sgx_uae_service.h"
 #include "sgx_urts.h"
+#include "spdlog/spdlog.h"
 #include "uuid.hpp"
 #include "worker.hpp"
 #include "worker_types.hpp"
@@ -26,9 +27,6 @@ using namespace std::chrono;
 /* DIDA modes*/
 std::string dida_dsp = "dsp";
 std::string dida_mrg = "mrg";
-
-/* Global EID shared by multiple threads */
-sgx_enclave_id_t global_eid = 0;
 
 typedef struct _sgx_errlist_t {
     sgx_status_t err;
@@ -111,7 +109,7 @@ void print_error_message(sgx_status_t ret) {
  *   Step 2: call sgx_create_enclave to initialize an enclave instance
  *   Step 3: save the launch token if it is updated
  */
-int initialize_enclave(void) {
+int initialize_enclave(sgx_enclave_id_t *global_eid) {
     char token_path[MAX_PATH] = {'\0'};
     sgx_launch_token_t token = {0};
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -150,7 +148,7 @@ int initialize_enclave(void) {
     }
     /* Step 2: call sgx_create_enclave to initialize an enclave instance */
     /* Debug Support: set 2nd parameter to 1 */
-    ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, &token, &updated, &global_eid, NULL);
+    ret = sgx_create_enclave(ENCLAVE_FILENAME, SGX_DEBUG_FLAG, &token, &updated, global_eid, NULL);
     if (ret != SGX_SUCCESS) {
         print_error_message(ret);
         if (fp != NULL)
@@ -210,8 +208,11 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     auto start = high_resolution_clock::now();
 
+    /* Global EID shared by multiple threads */
+    sgx_enclave_id_t global_eid = 0;
+
     /* Initialize the enclave */
-    if (initialize_enclave() < 0) {
+    if (initialize_enclave(&global_eid) < 0) {
         return -1;
     }
 
@@ -222,12 +223,14 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     tasker::Worker worker(gen_random(16), TYPE_SECURE);
     worker.OnMessage([&worker, &argc, &argv, &global_eid](std::string msg) {
+        spdlog::info("Handeling command {}", msg);
         // determining the DIDA command
         std::string dida_command = msg.substr(0, 3);
 
         if (dida_command.compare(dida_dsp) == 0) {
-            auto dispatch_command = DispatchCommand(msg);
-            dsp(argc, argv, global_eid);
+            auto dispatch_command = DispatchCommand(msg, get_root());
+
+            dsp(dispatch_command, global_eid);
         } else if (dida_command.compare(dida_mrg) == 0) {
             mrg(argc, argv, global_eid);
         } else {

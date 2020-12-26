@@ -34,22 +34,21 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <thread>
 #include <vector>
-#include <chrono> 
-using namespace std::chrono; 
+using namespace std::chrono;
 
 #include "Enclave_u.h"
 #include "dsp.h"
 
-void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
+void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid) {
     std::cout << "Loading bloom filters..." << std::endl;
-    std::vector<std::vector<bool> *> bfs = dida_build_bf(argc, argv);
+    std::vector<std::vector<bool> *> bfs = dida_build_bf(dispatch_command);
     std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
-
 
     auto start = high_resolution_clock::now();
 
@@ -70,17 +69,6 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
             }
             bf_data[(i / 8) - 1] = val;
         }
-        // printf("\n\n Sent\n\n");
-        // for (int i = 0; i < 40; i++) {
-        //     printf("%s", bf->at(i) ? "1" : "0");
-        // }
-        // printf("\n");
-
-        // printf("\n\n Sent Chars\n\n");
-        // for (int i = 0; i < 5; i++) {
-        //     printf("%d,", bf_data[i]);
-        // }
-        // printf("\n");
 
         delete bf;
         std::cout << "Sending a bf of size " << char_arr_size << " to the encalve..." << std::endl;
@@ -97,111 +85,27 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
 
     auto stop = high_resolution_clock::now();
 
-    auto duration = duration_cast<milliseconds>(stop - start); 
+    auto duration = duration_cast<milliseconds>(stop - start);
 
-    std::cout << "Bloomfilter transfering took : "<<duration.count() <<"ms"<< std::endl; 
+    std::cout << "Bloomfilter transfering took : " << duration.count() << "ms" << std::endl;
 
     ecall_print_bf_summary(global_eid);
 
-    // PARSE ARGS
-    const char shortopts[] = "s:l:b:p:j:d:h:i:r";
-
-    enum { OPT_HELP = 1,
-           OPT_VERSION };
-
-    int bmer = 16;
-    int bmer_step = -1;
-    int nhash = 5;
-    int se = 0;
-    int fq = 0;
-    int pnum = 12;
-    unsigned threads = 0;
-    int alen = 20;
-    unsigned ibits = 8;
-
-    const struct option longopts[] = {
-        {"threads", required_argument, NULL, 'j'},
-        {"partition", required_argument, NULL, 'p'},
-        {"bmer", required_argument, NULL, 'b'},
-        {"alen", required_argument, NULL, 'l'},
-        {"step", required_argument, NULL, 's'},
-        {"hash", required_argument, NULL, 'h'},
-        {"bit", required_argument, NULL, 'i'},
-        {"rebf", no_argument, NULL, 0},
-        {"se", no_argument, &se, 1},
-        {"fq", no_argument, &fq, 1},
-        {"help", no_argument, NULL, OPT_HELP},
-        {"version", no_argument, NULL, OPT_VERSION},
-        {NULL, 0, NULL, 0}};
-
-    bool die = false;
-    std::string blPath;
-
-    optind = 1; // reset optid
-    for (int c; (c = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1;) {
-        std::istringstream arg(optarg != NULL ? optarg : "");
-        switch (c) {
-            case '?':
-                die = true;
-                break;
-            case 'j':
-                arg >> threads;
-                break;
-            case 'b':
-                arg >> bmer;
-                break;
-            case 'p':
-                arg >> pnum;
-                break;
-            case 'l':
-                arg >> alen;
-                break;
-            case 's':
-                arg >> bmer_step;
-                break;
-            case 'h':
-                arg >> nhash;
-                break;
-            case 'i':
-                arg >> ibits;
-                break;
-        }
-    }
-
-    if (bmer <= 0)
-        bmer = 3 * alen / 4;
-
-    if (bmer_step <= 0)
-        bmer_step = alen - bmer + 1;
-
-    std::cerr << "num-hash=" << nhash << "\n";
-    std::cerr << "bit-item=" << ibits << "\n";
-    std::cerr << "bmer-step=" << bmer_step << "\n";
-    std::cerr << "bmer=" << bmer << "\n";
-    std::cerr << "alen=" << alen << "\n";
-    std::cerr << "pnum=" << pnum << "\n";
-    // PARSE ARGS
-
     // now dispatch the reads
-    std::cerr << "Dispatching file : " << argv[argc - 1] << std::endl;
 
-    ecall_start_dispatch(global_eid, bmer,
-                         bmer_step,
-                         nhash,
-                         se,
-                         fq,
-                         pnum);
+    ecall_start_dispatch(global_eid, dispatch_command.GetBmer(),
+                         dispatch_command.GetBmerStep(),
+                         dispatch_command.GetNHash(),
+                         dispatch_command.GetSe(),
+                         dispatch_command.GetFq(),
+                         dispatch_command.GetPartitions());
 
-    std::ifstream input_files_list(argv[argc - 1]);
-
-    if (se) {
+    if (dispatch_command.GetSe()) {
         // single ended
 
         // reading file
-        std::string file_name;
-        std::getline(input_files_list, file_name);
 
-        std::ifstream input_file(file_name);
+        std::ifstream input_file(dispatch_command.GetInput1());
 
         std::string str((std::istreambuf_iterator<char>(input_file)),
                         std::istreambuf_iterator<char>());
@@ -213,13 +117,8 @@ void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid) {
         }
     } else {
         // paired ended
-        std::string file_name_1;
-        std::string file_name_2;
-        std::getline(input_files_list, file_name_1);
-        std::getline(input_files_list, file_name_2);
-
-        std::ifstream input_file1(file_name_1);
-        std::ifstream input_file2(file_name_2);
+        std::ifstream input_file1(dispatch_command.GetInput1());
+        std::ifstream input_file2(dispatch_command.GetInput2());
 
         std::string str1((std::istreambuf_iterator<char>(input_file1)),
                          std::istreambuf_iterator<char>());

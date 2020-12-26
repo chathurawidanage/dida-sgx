@@ -1,3 +1,4 @@
 #include "sgx_urts.h"
+#include "commands.hpp"
 
-void dsp(int argc, char *argv[], sgx_enclave_id_t global_eid);
+void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid);
