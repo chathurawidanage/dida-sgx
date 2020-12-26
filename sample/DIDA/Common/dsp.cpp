@@ -12,10 +12,9 @@
 #include <string>
 #include <vector>
 
-#include "spdlog/spdlog.h"
-
 #include "Uncompress.h"
 #include "config.h"
+#include "spdlog/spdlog.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -244,7 +243,7 @@ void getCanon(std::string &bMer) {
     }
 }
 
-std::vector<std::vector<bool> *> loadFilter() {
+std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
 #ifdef _OPENMP
     double start = omp_get_wtime();
 #else
@@ -267,6 +266,7 @@ std::vector<std::vector<bool> *> loadFilter() {
 #pragma omp parallel for shared(myFilters) private(pIndex) schedule(static, chunk)
     for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
         std::stringstream sstm;
+        sstm << command.GetIndexFolder() << "/";
         sstm << "mref-" << pIndex + 1 << ".fa";
         size_t filterSize = opt::ibits * getInfo((sstm.str()).c_str(), opt::bmer);
         myFilters[pIndex] = new std::vector<bool>();
@@ -472,7 +472,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
     std::cerr << "bmer=" << command.GetBmer() << "\n";
     std::cerr << "alen=" << command.GetAln() << "\n";
 
-    std::string bf_backup_name = command.GetRootFolder() + "/" + "nhash_" + std::to_string(command.GetNHash()) + "_ibits_" + std::to_string(command.GetIBits()) + "_bmersteps_" + std::to_string(command.GetBmerStep()) + "_bmer_" + std::to_string(command.GetBmer()) + "_part_" + std::to_string(command.GetPartitions()) + ".bf";
+    std::string bf_backup_name = command.GetIndexFolder() + "/" + "nhash_" + std::to_string(command.GetNHash()) + "_ibits_" + std::to_string(command.GetIBits()) + "_bmersteps_" + std::to_string(command.GetBmerStep()) + "_bmer_" + std::to_string(command.GetBmer()) + "_part_" + std::to_string(command.GetPartitions()) + ".bf";
 
     spdlog::info("Bloomfilter location {}", bf_backup_name);
 
@@ -494,7 +494,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
         std::cout << "loaded bloom filters..." << std::endl;
     } else {
         bf_file.close();
-        myFilters = loadFilter();
+        myFilters = loadFilter(command);
 
         // write to file
         std::cout << "backing up bloom filters..." << std::endl;

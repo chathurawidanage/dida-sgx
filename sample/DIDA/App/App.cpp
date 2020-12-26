@@ -185,12 +185,14 @@ void ocall_print_string(const char *str) {
     printf("%s", str);
 }
 
+std::string destination_dir = "";
+
 void ocall_print_file(const char *str, const char *file, int append) {
     std::cout << "Writing to file " << std::string(file) << std::endl;
 
     std::ofstream stream;
 
-    stream.open(std::string(file), append == 0 ? std::ofstream::out : std::ofstream::app);
+    stream.open(destination_dir + "/" + std::string(file), append == 0 ? std::ofstream::out : std::ofstream::app);
 
     if (!stream)
         std::cout << "Opening file failed" << std::endl;
@@ -202,6 +204,8 @@ void ocall_print_file(const char *str, const char *file, int append) {
 
     stream.close();
 }
+
+std::string msg_cmd = tasker::GetCommand(tasker::Commands::MESSAGE);
 
 /* Application entry */
 int SGX_CDECL main(int argc, char *argv[]) {
@@ -224,16 +228,26 @@ int SGX_CDECL main(int argc, char *argv[]) {
 
     printf("Enclave initialized in %ld ms\n", duration.count());
 
+    int32_t validation_code;
+    std::string validation_msg;
+
     tasker::Worker worker(gen_random(16), TYPE_SECURE);
-    worker.OnMessage([&worker, &argc, &argv, &global_eid](std::string msg) {
+    worker.OnMessage([&worker, &argc, &argv, &global_eid, &validation_code, &validation_msg](std::string msg) {
         spdlog::info("Handeling command {}", msg);
         // determining the DIDA command
         std::string dida_command = msg.substr(0, 3);
 
         if (dida_command.compare(dida_dsp) == 0) {
-            auto dispatch_command = DispatchCommand(msg, get_root());
+            auto dispatch_command = DispatchCommand(msg);
+            dispatch_command.Parse(&validation_code, &validation_msg);
 
-            dsp(dispatch_command, global_eid);
+            if (validation_code == 0) {
+                destination_dir = dispatch_command.GetDestination();
+                dsp(dispatch_command, global_eid);
+                destination_dir = "";
+            } else {
+                worker.Send(msg_cmd, validation_msg);
+            }
         } else if (dida_command.compare(dida_mrg) == 0) {
             mrg(argc, argv, global_eid);
         } else {
