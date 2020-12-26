@@ -29,3 +29,8 @@ set(SRCS App/App.cpp
 add_untrusted_executable(didasgx SRCS ${SRCS} EDL Enclave/Enclave.edl EDL_SEARCH_PATHS ${EDL_SEARCH_PATHS})
 add_dependencies(didasgx enclave-sign)
 target_link_libraries(didasgx ${DIDA_LIBRARIES} gomp dl fmt ${ZeroMQ_LIBRARY} spdlog::spdlog worker-lib tasker-common commands)
+
+add_executable(
+    prt
+    Common/prt.cpp
+)
