@@ -1,13 +1,13 @@
 #include <assert.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <string>
 #include <unistd.h>
 
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <string>
 #define MAX_PATH FILENAME_MAX
 
 #include "App.h"
@@ -121,6 +121,8 @@ int initialize_enclave(sgx_enclave_id_t *global_eid) {
     /* try to get the token saved in $HOME */
     const char *home_dir = getpwuid(getuid())->pw_dir;
 
+    spdlog::info("Looing for the token in {}", home_dir);
+
     if (home_dir != NULL &&
         (strlen(home_dir) + strlen("/") + sizeof(TOKEN_FILENAME) + 1) <= MAX_PATH) {
         /* compose the token path */
@@ -212,6 +214,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
     sgx_enclave_id_t global_eid = 0;
 
     /* Initialize the enclave */
+    spdlog::info("Initializing enclave....");
     if (initialize_enclave(&global_eid) < 0) {
         return -1;
     }
