@@ -500,7 +500,7 @@ int main(int argc, char **argv) {
         std::cout << "Dynamic target partitioning.\n";
         std::vector<int> lenArr;
         long totLen;
-        std::vector<std::vector<int> > adjList = getAdj(uName, lenArr, totLen);
+        std::vector<std::vector<int> > adjList = getAdj(uName, dName,lenArr, totLen);
         std::vector<std::vector<int> > conComp = getCom(adjList, lenArr);
         std::vector<int> disVec = compDist(conComp, lenArr, totLen, pNum);
         distPar(uName, dName, pNum, disVec);
