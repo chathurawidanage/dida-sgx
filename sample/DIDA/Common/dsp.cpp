@@ -65,6 +65,8 @@ size_t getInfo(const char *aName, unsigned k) {
     std::string line;
     std::ifstream faFile(aName);
 
+    std::cerr << "Getting info of " << aName << "\n";
+
     getline(faFile, line);
     if (line[0] != '>') {
         std::cerr << "Target file is not in correct format!\n";
