@@ -21,85 +21,6 @@
 
 #define PROGRAM "dsp"
 
-static const char VERSION_MESSAGE[] =
-    PROGRAM " Version " VERSION
-            "\n"
-            "Written by Hamid Mohamadi.\n"
-            "Copyright 2015 Canada's Michael Smith Genome Science Centre\n";
-
-static const char USAGE_MESSAGE[] =
-    "Usage: " PROGRAM
-    " [OPTION]... QUERY\n"
-    "Dispatch the sequences of the files QUERY based on the Bloom filter of the file TARGET.\n"
-    "\n"
-    " Options:\n"
-    "\n"
-    "  -p, --partition=N       divide reference to N partitions\n"
-    "  -j, --threads=N         use N parallel threads [partitions]\n"
-    "  -l, --alen=N            the minimum alignment length [20]\n"
-    "  -b, --bmer=N            size of a bmer [3*alen/4]\n"
-    "  -s, --step=N            step size used when breaking a query sequence into bmers [bmer]\n"
-    "  -h, --hash=N            use N hash functions for Bloom filter [6]\n"
-    "  -i, --bit=N             use N bits for each item in Bloom filter [8]\n"
-    "      --se                single-end library\n"
-    "      --fq                dispatch reads in fastq format\n"
-    "      --help              display this help and exit\n"
-    "      --version           output version information and exit\n"
-    "\n"
-    "Report bugs to hmohamadi@bcgsc.ca.\n";
-
-namespace opt {
-/** Number of bits per item. */
-unsigned ibits = 8;
-
-/** The number of parallel threads. */
-static unsigned threads = 0;
-
-/** The number of partitions. */
-static int pnum = 1;
-
-/** The number of hash functions. */
-int nhash = 5;
-
-/** Minimum alignment length. */
-int alen = 20;
-
-/** The size of a b-mer. */
-int bmer = -1;
-
-/** The step size when breaking a read into b-mers. */
-int bmer_step = -1;
-
-/** single-end library. */
-static int se;
-
-/** fastq mode dispatch. */
-static int fq;
-
-/** Make bloom filters reusable*/
-static int reuse_bf;
-}  // namespace opt
-
-static const char shortopts[] = "s:l:b:p:j:d:h:i:r";
-
-enum { OPT_HELP = 1,
-       OPT_VERSION };
-
-static const struct option longopts[] = {
-    {"threads", required_argument, NULL, 'j'},
-    {"partition", required_argument, NULL, 'p'},
-    {"bmer", required_argument, NULL, 'b'},
-    {"alen", required_argument, NULL, 'l'},
-    {"step", required_argument, NULL, 's'},
-    {"hash", required_argument, NULL, 'h'},
-    {"bit", required_argument, NULL, 'i'},
-    {"rebf", no_argument, NULL, 0},
-    {"se", no_argument, &opt::se, 1},
-    {"fq", no_argument, &opt::fq, 1},
-    {"help", no_argument, NULL, OPT_HELP},
-    {"version", no_argument, NULL, OPT_VERSION},
-    {NULL, 0, NULL, 0}};
-
 static const char b2p[256] = {
     'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N',  //0
     'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N',
@@ -163,6 +84,7 @@ size_t getInfo(const char *aName, unsigned k) {
     if (uLen >= k)
         totItm += uLen - k + 1;
 
+    std::cerr << "Got info of " << aName << "\n";
     std::cerr << "|totLen|=" << totItm << "\n";
     faFile.close();
     return totItm;
@@ -217,26 +139,26 @@ uint64_t MurmurHash64A(const void *key, int len, unsigned int seed) {
     return h;
 }
 
-void filInsert(std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
-    for (int i = 0; i < opt::nhash; ++i)
-        (*myFilters[pn])[MurmurHash64A(bMer.c_str(), opt::bmer, i) % myFilters[pn]->size()] = true;
+void filInsert(DispatchCommand &command, std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
+    for (int i = 0; i < command.GetNHash(); ++i)
+        (*myFilters[pn])[MurmurHash64A(bMer.c_str(), command.GetBmer(), i) % myFilters[pn]->size()] = true;
 }
 
-bool filContain(const std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
-    for (int i = 0; i < opt::nhash; ++i)
-        if (!(*myFilters[pn])[MurmurHash64A(bMer.c_str(), opt::bmer, i) % myFilters[pn]->size()])
+bool filContain(DispatchCommand &command, const std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
+    for (int i = 0; i < command.GetNHash(); ++i)
+        if (!(*myFilters[pn])[MurmurHash64A(bMer.c_str(), command.GetBmer(), i) % myFilters[pn]->size()])
             return false;
     return true;
 }
 
-void getCanon(std::string &bMer) {
-    int p = 0, hLen = (opt::bmer - 1) / 2;
-    while (bMer[p] == b2p[(unsigned char)bMer[opt::bmer - 1 - p]]) {
+void getCanon(DispatchCommand &command, std::string &bMer) {
+    int p = 0, hLen = (command.GetBmer() - 1) / 2;
+    while (bMer[p] == b2p[(unsigned char)bMer[command.GetBmer() - 1 - p]]) {
         ++p;
         if (p >= hLen) break;
     }
-    if (bMer[p] > b2p[(unsigned char)bMer[opt::bmer - 1 - p]]) {
-        for (int lIndex = p, rIndex = opt::bmer - 1 - p; lIndex <= rIndex; ++lIndex, --rIndex) {
+    if (bMer[p] > b2p[(unsigned char)bMer[command.GetBmer() - 1 - p]]) {
+        for (int lIndex = p, rIndex = command.GetBmer() - 1 - p; lIndex <= rIndex; ++lIndex, --rIndex) {
             char tmp = b2p[(unsigned char)bMer[rIndex]];
             bMer[rIndex] = b2p[(unsigned char)bMer[lIndex]];
             bMer[lIndex] = tmp;
@@ -261,15 +183,15 @@ std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
 
     int pIndex, chunk = 1;
     //begin create filters
-    std::vector<std::vector<bool> *> myFilters(opt::pnum);
+    std::vector<std::vector<bool> *> myFilters(command.GetPartitions());
 
     std::cerr << "Loading filters ...\n";
 #pragma omp parallel for shared(myFilters) private(pIndex) schedule(static, chunk)
-    for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
+    for (pIndex = 0; pIndex < command.GetPartitions(); ++pIndex) {
         std::stringstream sstm;
         sstm << command.GetIndexFolder() << "/";
         sstm << "mref-" << pIndex + 1 << ".fa";
-        size_t filterSize = opt::ibits * getInfo((sstm.str()).c_str(), opt::bmer);
+        size_t filterSize = command.GetIBits() * getInfo((sstm.str()).c_str(), command.GetBmer());
         myFilters[pIndex] = new std::vector<bool>();
         myFilters[pIndex]->resize(filterSize);
         std::ifstream uFile((sstm.str()).c_str());
@@ -282,20 +204,20 @@ std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
             else {
                 std::transform(line.begin(), line.end(), line.begin(), ::toupper);
                 long uL = line.length();
-                for (long j = 0; j < uL - opt::bmer + 1; ++j) {
-                    std::string bMer = line.substr(j, opt::bmer);
-                    getCanon(bMer);
-                    filInsert(myFilters, pIndex, bMer);
+                for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
+                    std::string bMer = line.substr(j, command.GetBmer());
+                    getCanon(command, bMer);
+                    filInsert(command, myFilters, pIndex, bMer);
                 }
                 line.clear();
             }
         }
         std::transform(line.begin(), line.end(), line.begin(), ::toupper);
         long uL = line.length();
-        for (long j = 0; j < uL - opt::bmer + 1; ++j) {
-            std::string bMer = line.substr(j, opt::bmer);
-            getCanon(bMer);
-            filInsert(myFilters, pIndex, bMer);
+        for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
+            std::string bMer = line.substr(j, command.GetBmer());
+            getCanon(command, bMer);
+            filInsert(command, myFilters, pIndex, bMer);
         }
 
         uFile.close();
@@ -311,7 +233,7 @@ std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
     return myFilters;
 }
 
-void dispatchRead(const char *libName, const std::vector<std::vector<bool> *> &myFilters) {
+/*void dispatchRead(const char *libName, const std::vector<std::vector<bool> *> &myFilters) {
     size_t buffSize = 4000000;
     std::ofstream rdFiles[opt::pnum];
     for (int i = 0; i < opt::pnum; ++i) {
@@ -419,7 +341,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> *> &m
     std::ofstream imdFile("maxinf", std::ios_base::app);
     imdFile << readId << "\n";
     imdFile.close();
-}
+}*/
 
 void binary_write(std::ofstream &fout, const std::vector<bool> *x) {
     std::vector<bool>::size_type n = x->size();
@@ -484,8 +406,8 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
     if (bf_file.good()) {  // load from file
         std::cout << "Loading bloom filters from file" << std::endl;
         std::ifstream bf_in_file(bf_backup_name.c_str());
-        std::cout << "Created if stream. P num : " << opt::pnum << std::endl;
-        for (int x = 0; x < opt::pnum; x++) {
+        std::cout << "Created if stream. P num : " << command.GetPartitions() << std::endl;
+        for (int x = 0; x < command.GetPartitions(); x++) {
             std::vector<bool> *vec_ = new std::vector<bool>();
             binary_read(bf_in_file, vec_);
             std::cout << "Loaded a vector of size " << vec_->size() << std::endl;
@@ -521,6 +443,6 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
     return myFilters;
 }
 
-void dida_do_dsp(std::string libName, std::vector<std::vector<bool> *> bf) {
-    dispatchRead(libName.c_str(), bf);
-}
+// void dida_do_dsp(std::string libName, std::vector<std::vector<bool> *> bf) {
+//     dispatchRead(libName.c_str(), bf);
+// }
