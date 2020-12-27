@@ -117,7 +117,7 @@ void getFname(const char *filename, std::string &bName, std::string &eName) {
     eName = fName.substr(pos + 1, std::string::npos);
 }
 
-std::vector<std::vector<int> > getAdj(const char *uName, std::vector<int> &lenArr, long &totLen) {
+std::vector<std::vector<int> > getAdj(const char *uName, const char *dName, std::vector<int> &lenArr, long &totLen) {
     std::string bName, eName;
     getFname(uName, bName, eName);
     std::stringstream ast;
@@ -131,14 +131,14 @@ std::vector<std::vector<int> > getAdj(const char *uName, std::vector<int> &lenAr
         iss >> maxLen;
     }
     ++maxLen;
-    std::ofstream imdFile("maxinf");
+    std::ofstream imdFile(std::string(dName) + "/maxinf");
     imdFile << maxLen << "\n";
     imdFile.close();
 
     std::vector<std::vector<int> > adjList(maxLen);
     lenArr.resize(maxLen, 0);
 
-    std::ofstream alnFile("aln.sam");
+    std::ofstream alnFile(std::string(dName) + "/aln.sam");
     alnFile << "@HD\tVN:0.3\n";
     alnFile << "@PG\tID:DIDA\tPN:DIDA\tVN:0.1.3\n";
 
