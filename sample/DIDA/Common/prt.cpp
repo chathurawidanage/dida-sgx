@@ -373,7 +373,7 @@ void distTarget(const char *uName, const char *dName, const int pNum) {
     alnFile.close();
 
     std::cout << "|target|=" << totLen << "\t #seq=" << lenArr.size() << "\n";
-    std::ofstream imdFile("maxinf");
+    std::ofstream imdFile(std::string(dName) + "/maxinf");
     imdFile << lenArr.size() << "\n";
     imdFile.close();
 
