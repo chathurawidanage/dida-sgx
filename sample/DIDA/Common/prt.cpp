@@ -482,7 +482,7 @@ int main(int argc, char **argv) {
         die = true;
     }
 
-    if (argc - optind != 1) {
+    if (argc - optind != 2) {
         std::cerr << PROGRAM ": missing arguments\n";
         die = true;
     }
