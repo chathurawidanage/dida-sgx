@@ -318,7 +318,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
         // printf(rdFiles[i]->c_str());
         // printf("\n\n");
 
-        std::string file_name = "mread-" + std::to_string(i) + ".fa";
+        std::string file_name = "mread-" + std::to_string(i + 1) + ".fa";
         printf("Doing ocall to write to file : %s, Size : %d\n", file_name, rdFiles[i]->size());
         print_file(file_name.c_str(), 0, rdFiles[i]->c_str());
     }
