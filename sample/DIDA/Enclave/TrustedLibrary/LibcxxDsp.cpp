@@ -309,7 +309,7 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
     //printf("imFile content : \n\n");
     std::string max_inf = "maxinf";
     ocall_print_file(imdFile.c_str(), max_inf.c_str(), 1);
-    //printf(imdFile.c_str());
+    printf("maxinf : %s", imdFile.c_str());
     //printf("\n\n");
 
     printf("printing %d rdFiles %d...\n", rdFiles.size(), pnum);
