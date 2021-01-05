@@ -84,6 +84,7 @@ int nhash = 0;
 int se = 0;
 int fq = 0;
 int pnum = 0;
+int segment = -1;
 
 // MurmurHash2, 64-bit versions, by Austin Appleby
 // https://sites.google.com/site/murmurhash/MurmurHash2_64.cpp?attredirects=0
@@ -324,18 +325,184 @@ void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) 
     }
 }
 
+void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, int seq2_len) {
+    size_t buffSize = 4000000;
+
+    std::string *rdFile = new std::string("");
+    // std::vector<std::string *> rdFiles;
+
+    // for (int i = 0; i < pnum; i++) {
+    //     rdFiles.push_back(new std::string(""));
+    // }
+
+    std::vector<char *> sequences;
+    sequences.push_back(sequence1);
+
+    if (!se) {
+        sequences.push_back(sequence2);
+    }
+
+    std::string msFile;
+    std::string imdFile;
+
+    size_t fileNo = 0, readId = 0;
+    std::string readHead, readSeq, readDir, readQual, rName;
+
+    char delim[] = "\n";
+
+    std::vector<char *> saved_ptrs(sequences.size());
+    std::vector<bool> saved_ptrs_init(sequences.size());
+    for (int i = 0; i < sequences.size(); i++) {
+        saved_ptrs[i] = sequences[i];
+        saved_ptrs_init[i] = false;
+    }
+
+    bool readValid = true;
+    printf("Starting outer loop...\n");
+    while (readValid) {
+        readValid = false;
+        // set up readBuff
+        std::vector<faqRec *> readBuffer;  // fixed-size to improve performance
+        //printf("Processing file %d\n", fileNo);
+        char *line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
+        saved_ptrs_init[fileNo] = true;
+        while (line != nullptr) {
+            readHead = line;
+            //printf("Head of file no %d : %s\n", fileNo, readHead);
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
+            if (line != nullptr) {
+                readSeq = line;
+            } else {
+                printf("FATAL : Null sequence\n");
+                continue;
+            }
+            std::transform(readSeq.begin(), readSeq.end(), readSeq.begin(), ::toupper);
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
+            if (line != nullptr) {
+                readDir = line;
+            }
+
+            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
+            if (line != nullptr) {
+                readQual = line;
+            }
+
+            readHead[0] = ':';
+            faqRec *rRec = new faqRec;
+
+            std::string hstm;
+            if (!fq) {
+                hstm.append(">").append(std::to_string(readId)).append(readHead);
+            } else {
+                hstm.append("@").append(std::to_string(readId)).append(readHead);
+            };
+            rRec->readHead = hstm;
+            rRec->readSeq = readSeq;
+            rRec->readQual = readQual;
+            readBuffer.push_back(rRec);
+
+            //printf("readHead from file %d : %s\n", fileNo, hstm.c_str());
+            //printf("readSeq from file %d : %s\n", fileNo,readSeq.c_str());
+
+            if (!se) fileNo = (fileNo + 1) % 2;
+            ++readId;
+            if (readBuffer.size() == buffSize) break;
+
+            if (saved_ptrs_init[fileNo]) {
+                line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
+            } else {
+                line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
+                saved_ptrs_init[fileNo] = true;
+            }
+            // line = strtok(NULL, delim);
+            // if (line == nullptr && !se && fileNo == 1) {  // move to next file
+            //     printf("File no at the end : %d\n", fileNo);
+            //     line = strtok(sequences[fileNo], delim);
+            // }
+        }
+
+        printf("Done filling buffers\n");
+        if (readBuffer.size() == buffSize) readValid = true;
+
+        //dispatch buffer
+        int pIndex = 0;  //only one partition is handled in this mode
+        std::vector<bool> dspRead(buffSize, false);
+        // for (pIndex = 0; pIndex < pnum; ++pIndex) {
+
+        //printf("Processing partition %d having %d buffers\n", pIndex, readBuffer.size());
+        for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
+            //printf("Processing read buff %d\n", bIndex);
+            faqRec *bRead = readBuffer[bIndex];
+            size_t readLen = bRead->readSeq.length();
+            //printf("Seq len  %d\n", readLen);
+            //size_t j=0;
+            for (size_t j = 0; j <= readLen - bmer; j += bmer_step) {
+                //printf("Processing bmer %d\n", j);
+                std::string bMer = bRead->readSeq.substr(j, bmer);
+                //printf("Get canon...\n");
+                getCanon(bMer);
+                //printf("Checking bloomfilter v2... %s, pNum : %d \n", bMer, pIndex);
+                // todo optimize here
+                if (filContain(bloom_filters, pIndex, bMer)) {
+                    //printf("Checked bloomfilter...\n");
+                    dspRead[bIndex] = true;
+                    if (!fq)
+                        rdFile->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n");
+                    else
+                        rdFile->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n+\n").append(bRead->readQual).append("\n");
+                    break;
+                }
+            }
+        }
+        // }  // end dispatch buffer
+        for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
+            if (!dspRead[bIndex])
+                msFile.append(readBuffer[bIndex]->readHead.substr(1, std::string::npos))
+                    .append("\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n");
+
+            // clear memory
+            delete readBuffer[bIndex];
+        }
+
+        printf("End of outer while loop\n");
+    }
+
+    imdFile.append(std::to_string(readId)).append("\n");
+
+    //printf("\n\n");
+    //printf("msFile content : \n\n");
+    //printf(msFile.c_str());
+    //printf("\n\n");
+
+    //printf("imFile content : \n\n");
+    std::string max_inf = "maxinf-" + segment;
+    ocall_print_file(imdFile.c_str(), max_inf.c_str(), 1);
+    printf("maxinf : %s", imdFile.c_str());
+    //printf("\n\n");
+
+    std::string file_name = "mread-" + std::to_string(segment + 1) + ".fa";
+    printf("Doing ocall to write to file : %s, Size : %d\n", file_name, rdFile->size());
+    print_file(file_name.c_str(), 0, rdFile->c_str());
+}
+
 void ecall_start_dispatch(int para_bmer,
                           int para_bmer_step,
                           int para_nhash,
                           int para_se,
                           int para_fq,
-                          int para_pnum) {
+                          int para_pnum,
+                          int sgmnt) {
     bmer = para_bmer;
     bmer_step = para_bmer_step;
     nhash = para_nhash;
     se = para_se;
     fq = para_fq;
     pnum = para_pnum;
+    segment = sgmnt;
+
+    if (segment != -1) {
+        printf("handeling segment %d\n", segment);
+    }
 
     printf("Initialized dispatch with pnum %d\n", pnum);
 }

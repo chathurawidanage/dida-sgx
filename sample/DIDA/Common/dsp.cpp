@@ -190,39 +190,41 @@ std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
     std::cerr << "Loading filters ...\n";
 #pragma omp parallel for shared(myFilters) private(pIndex) schedule(static, chunk)
     for (pIndex = 0; pIndex < command.GetPartitions(); ++pIndex) {
-        std::stringstream sstm;
-        sstm << command.GetIndexFolder() << "/";
-        sstm << "mref-" << pIndex + 1 << ".fa";
-        size_t filterSize = command.GetIBits() * getInfo((sstm.str()).c_str(), command.GetBmer());
-        myFilters[pIndex] = new std::vector<bool>();
-        myFilters[pIndex]->resize(filterSize);
-        std::ifstream uFile((sstm.str()).c_str());
+        if (pIndex == command.GetSegment()) {  //handel segmenting
+            std::stringstream sstm;
+            sstm << command.GetIndexFolder() << "/";
+            sstm << "mref-" << pIndex + 1 << ".fa";
+            size_t filterSize = command.GetIBits() * getInfo((sstm.str()).c_str(), command.GetBmer());
+            myFilters[pIndex] = new std::vector<bool>();
+            myFilters[pIndex]->resize(filterSize);
+            std::ifstream uFile((sstm.str()).c_str());
 
-        std::string pline, line;
-        getline(uFile, pline);
-        while (getline(uFile, pline)) {
-            if (pline[0] != '>')
-                line += pline;
-            else {
-                std::transform(line.begin(), line.end(), line.begin(), ::toupper);
-                long uL = line.length();
-                for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
-                    std::string bMer = line.substr(j, command.GetBmer());
-                    getCanon(command, bMer);
-                    filInsert(command, myFilters, pIndex, bMer);
+            std::string pline, line;
+            getline(uFile, pline);
+            while (getline(uFile, pline)) {
+                if (pline[0] != '>')
+                    line += pline;
+                else {
+                    std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+                    long uL = line.length();
+                    for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
+                        std::string bMer = line.substr(j, command.GetBmer());
+                        getCanon(command, bMer);
+                        filInsert(command, myFilters, pIndex, bMer);
+                    }
+                    line.clear();
                 }
-                line.clear();
             }
-        }
-        std::transform(line.begin(), line.end(), line.begin(), ::toupper);
-        long uL = line.length();
-        for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
-            std::string bMer = line.substr(j, command.GetBmer());
-            getCanon(command, bMer);
-            filInsert(command, myFilters, pIndex, bMer);
-        }
+            std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+            long uL = line.length();
+            for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
+                std::string bMer = line.substr(j, command.GetBmer());
+                getCanon(command, bMer);
+                filInsert(command, myFilters, pIndex, bMer);
+            }
 
-        uFile.close();
+            uFile.close();
+        }
     }
 
     std::cerr << "Loading BF done!\n";
@@ -397,7 +399,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
     std::cerr << "bmer=" << command.GetBmer() << "\n";
     std::cerr << "alen=" << command.GetAln() << "\n";
 
-    std::string bf_backup_name = command.GetIndexFolder() + "/" + "nhash_" + std::to_string(command.GetNHash()) + "_ibits_" + std::to_string(command.GetIBits()) + "_bmersteps_" + std::to_string(command.GetBmerStep()) + "_bmer_" + std::to_string(command.GetBmer()) + "_part_" + std::to_string(command.GetPartitions()) + ".bf";
+    std::string bf_backup_name = command.GetIndexFolder() + "/" + "nhash_" + std::to_string(command.GetNHash()) + "_ibits_" + std::to_string(command.GetIBits()) + "_bmersteps_" + std::to_string(command.GetBmerStep()) + "_bmer_" + std::to_string(command.GetBmer()) + "_part_" + std::to_string(command.GetPartitions()) + "_segm_" + std::to_string(command.GetSegment()) + ".bf";
 
     spdlog::info("Bloomfilter location {}", bf_backup_name);
 

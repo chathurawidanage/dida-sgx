@@ -98,7 +98,8 @@ void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid) {
                          dispatch_command.GetNHash(),
                          dispatch_command.GetSe(),
                          dispatch_command.GetFq(),
-                         dispatch_command.GetPartitions());
+                         dispatch_command.GetPartitions(),
+                         dispatch_command.GetSegment());
 
     if (dispatch_command.GetSe()) {
         // single ended
