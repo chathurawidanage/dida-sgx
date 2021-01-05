@@ -514,13 +514,21 @@ void ecall_finalize_dispatch() {
 void ecall_load_data(char *data_seq, int seq_len) {
     // do decryption
     printf("Dispatching read of length : %d, pnum: %d\n", seq_len, pnum);
-    dispatchRead(data_seq, seq_len, nullptr, 0);
+    if (segment != -1) {
+        dispatchReadSingleSegment(data_seq, seq_len, nullptr, 0);
+    } else {
+        dispatchRead(data_seq, seq_len, nullptr, 0);
+    }
 }
 
 void ecall_load_data2(char *data1, int len1, char *data2, int len2) {
     // do decryption of both seq here
     printf("Dispatching paired read of length : %d and %d, pnum: %d\n", len1, len2, pnum);
-    dispatchRead(data1, len1, data2, len2);
+    if (segment != -1) {
+        dispatchReadSingleSegment(data1, len1, data2, len2);
+    } else {
+        dispatchRead(data1, len1, data2, len2);
+    }
 }
 
 void ecall_load_bf(unsigned char *data, long len, long bf_len) {
