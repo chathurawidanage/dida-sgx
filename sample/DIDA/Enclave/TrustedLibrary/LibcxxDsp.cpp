@@ -475,7 +475,7 @@ void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, i
     //printf("\n\n");
 
     //printf("imFile content : \n\n");
-    std::string max_inf = "maxinf-" + segment;
+    std::string max_inf = "maxinf-" + std::to_string(segment + 1);
     ocall_print_file(imdFile.c_str(), max_inf.c_str(), 1);
     printf("maxinf : %s", imdFile.c_str());
     //printf("\n\n");

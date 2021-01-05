@@ -113,6 +113,7 @@ void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid) {
 
         std::cerr << "Dispatch file length: " << str.size() << std::endl;
         sgx_status_t ret = ecall_load_data(global_eid, const_cast<char *>(str.c_str()), str.length());
+        std::cerr << "Dispatch done for segment " << dispatch_command.GetSegment() << std::endl;
         if (ret != SGX_SUCCESS) {
             std::cerr << "Failed to dispatch file : " << ret << std::endl;
         }

@@ -245,6 +245,7 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 destination_dir = dispatch_command.GetDestination();
                 dsp(dispatch_command, global_eid);
                 destination_dir = "";
+                worker.Send(msg_cmd, "MSG 0");
             } else {
                 worker.Send(msg_cmd, validation_msg);
             }
