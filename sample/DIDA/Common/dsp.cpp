@@ -422,7 +422,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
         } else {
             std::vector<bool> *vec_ = new std::vector<bool>();
             binary_read(bf_in_file, vec_);
-            std::cout << "Loaded a vector of size " << vec_->size() << std::endl;
+            std::cout << "Loaded a vector of size in segment mode" << vec_->size() << std::endl;
             myFilters[0] = vec_;
         }
         bf_in_file.close();
