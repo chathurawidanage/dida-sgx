@@ -185,7 +185,7 @@ std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
 
     int pIndex, chunk = 1;
     //begin create filters
-    std::vector<std::vector<bool> *> myFilters(command.GetPartitions());
+    std::vector<std::vector<bool> *> myFilters(command.GetSegment() == -1 ? command.GetPartitions() : 1);
 
     std::cerr << "Loading filters ...\n";
 #pragma omp parallel for shared(myFilters) private(pIndex) schedule(static, chunk)
@@ -403,7 +403,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
 
     spdlog::info("Bloomfilter location {}", bf_backup_name);
 
-    std::vector<std::vector<bool> *> myFilters(command.GetPartitions());
+    std::vector<std::vector<bool> *> myFilters(command.GetSegment() == -1 ? command.GetPartitions() : 1);
 
     // check the file exists
     std::ifstream bf_file(bf_backup_name.c_str());
@@ -411,11 +411,19 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
         std::cout << "Loading bloom filters from file" << std::endl;
         std::ifstream bf_in_file(bf_backup_name.c_str());
         std::cout << "Created if stream. P num : " << command.GetPartitions() << std::endl;
-        for (int x = 0; x < command.GetPartitions(); x++) {
+        // if segmentation enabled load only one bf
+        if (command.GetSegment() != -1) {
+            for (int x = 0; x < command.GetPartitions(); x++) {
+                std::vector<bool> *vec_ = new std::vector<bool>();
+                binary_read(bf_in_file, vec_);
+                std::cout << "Loaded a vector of size " << vec_->size() << std::endl;
+                myFilters[x] = vec_;
+            }
+        } else {
             std::vector<bool> *vec_ = new std::vector<bool>();
             binary_read(bf_in_file, vec_);
             std::cout << "Loaded a vector of size " << vec_->size() << std::endl;
-            myFilters[x] = vec_;
+            myFilters[0] = vec_;
         }
         bf_in_file.close();
         std::cout << "loaded bloom filters..." << std::endl;
