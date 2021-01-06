@@ -47,16 +47,14 @@ using namespace std::chrono;
 
 void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid) {
     std::cout << "Loading bloom filters..." << std::endl;
-    std::vector<std::vector<bool> *> bfs = dida_build_bf(dispatch_command);
-    std::cout << "Done loading bloom filters of length : " << bfs.size() << std::endl;
+    std::vector<bool> *bf = dida_build_bf(dispatch_command);
+    std::cout << "Done loading bloom filters of length : " << bf->size() << std::endl;
 
     auto start = high_resolution_clock::now();
 
-    for (int x = 0; x < bfs.size(); x++) {
-        std::cout << "Encoding " << x << "th bfx" << std::endl;
-        std::vector<bool> *bf = bfs[x];
+    {
+        std::cout << "Encoding the bloomfilter..." << std::endl;
         long bf_size = bf->size();
-
         std::cout << "BF size :  " << bf_size << std::endl;
         long char_arr_size = (bf_size / 8) + 1;
         unsigned char *bf_data = new unsigned char[char_arr_size];

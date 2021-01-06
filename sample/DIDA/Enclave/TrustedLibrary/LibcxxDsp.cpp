@@ -76,7 +76,7 @@ static const char b2p[256] = {
     'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N',  //15
     'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N'};
 
-std::vector<std::vector<bool> *> bloom_filters;
+std::vector<bool> *bloom_filter;
 
 int bmer = 0;
 int bmer_step = 0;
@@ -135,14 +135,9 @@ uint64_t MurmurHash64A(const void *key, int len, unsigned int seed) {
     return h;
 }
 
-void filInsert(std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
-    for (int i = 0; i < nhash; ++i)
-        (*myFilters[pn])[MurmurHash64A(bMer.c_str(), bmer, i) % myFilters[pn]->size()] = true;
-}
-
-bool filContain(const std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
+bool filContain(const std::string &bMer) {
     for (int i = 0; i < nhash; ++i) {
-        if (!myFilters[pn]->at(MurmurHash64A(bMer.c_str(), bmer, i) % myFilters[pn]->size()))
+        if (!bloom_filter->at(MurmurHash64A(bMer.c_str(), bmer, i) % bloom_filter->size()))
             return false;
     }
     return true;
@@ -160,168 +155,6 @@ void getCanon(std::string &bMer) {
             bMer[rIndex] = b2p[(unsigned char)bMer[lIndex]];
             bMer[lIndex] = tmp;
         }
-    }
-}
-
-void dispatchRead(char *sequence1, int seq1_len, char *sequence2, int seq2_len) {
-    size_t buffSize = 4000000;
-
-    std::vector<std::string *> rdFiles;
-
-    for (int i = 0; i < pnum; i++) {
-        rdFiles.push_back(new std::string(""));
-    }
-
-    std::vector<char *> sequences;
-    sequences.push_back(sequence1);
-
-    if (!se) {
-        sequences.push_back(sequence2);
-    }
-
-    std::string msFile;
-    std::string imdFile;
-
-    size_t fileNo = 0, readId = 0;
-    std::string readHead, readSeq, readDir, readQual, rName;
-
-    char delim[] = "\n";
-
-    std::vector<char *> saved_ptrs(sequences.size());
-    std::vector<bool> saved_ptrs_init(sequences.size());
-    for (int i = 0; i < sequences.size(); i++) {
-        saved_ptrs[i] = sequences[i];
-        saved_ptrs_init[i] = false;
-    }
-
-    bool readValid = true;
-    printf("Starting outer loop...\n");
-    while (readValid) {
-        readValid = false;
-        // set up readBuff
-        std::vector<faqRec *> readBuffer;  // fixed-size to improve performance
-        //printf("Processing file %d\n", fileNo);
-        char *line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
-        saved_ptrs_init[fileNo] = true;
-        while (line != nullptr) {
-            readHead = line;
-            //printf("Head of file no %d : %s\n", fileNo, readHead);
-            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
-            if (line != nullptr) {
-                readSeq = line;
-            } else {
-                printf("FATAL : Null sequence\n");
-                continue;
-            }
-            std::transform(readSeq.begin(), readSeq.end(), readSeq.begin(), ::toupper);
-            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
-            if (line != nullptr) {
-                readDir = line;
-            }
-
-            line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
-            if (line != nullptr) {
-                readQual = line;
-            }
-
-            readHead[0] = ':';
-            faqRec *rRec = new faqRec;
-
-            std::string hstm;
-            if (!fq) {
-                hstm.append(">").append(std::to_string(readId)).append(readHead);
-            } else {
-                hstm.append("@").append(std::to_string(readId)).append(readHead);
-            };
-            rRec->readHead = hstm;
-            rRec->readSeq = readSeq;
-            rRec->readQual = readQual;
-            readBuffer.push_back(rRec);
-
-            //printf("readHead from file %d : %s\n", fileNo, hstm.c_str());
-            //printf("readSeq from file %d : %s\n", fileNo,readSeq.c_str());
-
-            if (!se) fileNo = (fileNo + 1) % 2;
-            ++readId;
-            if (readBuffer.size() == buffSize) break;
-
-            if (saved_ptrs_init[fileNo]) {
-                line = strtok_r(NULL, delim, &saved_ptrs[fileNo]);
-            } else {
-                line = strtok_r(sequences[fileNo], delim, &saved_ptrs[fileNo]);
-                saved_ptrs_init[fileNo] = true;
-            }
-            // line = strtok(NULL, delim);
-            // if (line == nullptr && !se && fileNo == 1) {  // move to next file
-            //     printf("File no at the end : %d\n", fileNo);
-            //     line = strtok(sequences[fileNo], delim);
-            // }
-        }
-
-        printf("Done filling buffers\n");
-        if (readBuffer.size() == buffSize) readValid = true;
-
-        //dispatch buffer
-        int pIndex;
-        std::vector<bool> dspRead(buffSize, false);
-        for (pIndex = 0; pIndex < pnum; ++pIndex) {
-            //printf("Processing partition %d having %d buffers\n", pIndex, readBuffer.size());
-            for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
-                //printf("Processing read buff %d\n", bIndex);
-                faqRec *bRead = readBuffer[bIndex];
-                size_t readLen = bRead->readSeq.length();
-                //printf("Seq len  %d\n", readLen);
-                //size_t j=0;
-                for (size_t j = 0; j <= readLen - bmer; j += bmer_step) {
-                    //printf("Processing bmer %d\n", j);
-                    std::string bMer = bRead->readSeq.substr(j, bmer);
-                    //printf("Get canon...\n");
-                    getCanon(bMer);
-                    //printf("Checking bloomfilter v2... %s, pNum : %d \n", bMer, pIndex);
-                    // todo optimize here
-                    if (filContain(bloom_filters, pIndex, bMer)) {
-                        //printf("Checked bloomfilter...\n");
-                        dspRead[bIndex] = true;
-                        if (!fq)
-                            rdFiles[pIndex]->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n");
-                        else
-                            rdFiles[pIndex]->append(bRead->readHead).append("\n").append(bRead->readSeq).append("\n+\n").append(bRead->readQual).append("\n");
-                        break;
-                    }
-                }
-            }
-        }  // end dispatch buffer
-        for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
-            if (!dspRead[bIndex])
-                msFile.append(readBuffer[bIndex]->readHead.substr(1, std::string::npos))
-                    .append("\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n");
-        }
-
-        printf("End of outer while loop\n");
-    }
-
-    imdFile.append(std::to_string(readId)).append("\n");
-
-    //printf("\n\n");
-    //printf("msFile content : \n\n");
-    //printf(msFile.c_str());
-    //printf("\n\n");
-
-    //printf("imFile content : \n\n");
-    std::string max_inf = "maxinf";
-    ocall_print_file(imdFile.c_str(), max_inf.c_str(), 1);
-    printf("maxinf : %s", imdFile.c_str());
-    //printf("\n\n");
-
-    printf("printing %d rdFiles %d...\n", rdFiles.size(), pnum);
-    for (int i = 0; i < rdFiles.size(); i++) {
-        // printf("rdFile %d content : \n\n", i);
-        // printf(rdFiles[i]->c_str());
-        // printf("\n\n");
-
-        std::string file_name = "mread-" + std::to_string(i + 1) + ".fa";
-        printf("Doing ocall to write to file : %s, Size : %d\n", file_name, rdFiles[i]->size());
-        print_file(file_name.c_str(), 0, rdFiles[i]->c_str());
     }
 }
 
@@ -443,7 +276,7 @@ void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, i
                 getCanon(bMer);
                 //printf("Checking bloomfilter v2... %s, pNum : %d \n", bMer, pIndex);
                 // todo optimize here
-                if (filContain(bloom_filters, pIndex, bMer)) {
+                if (filContain(bMer)) {
                     //printf("Checked bloomfilter...\n");
                     dspRead[bIndex] = true;
                     if (!fq)
@@ -513,22 +346,14 @@ void ecall_finalize_dispatch() {
 
 void ecall_load_data(char *data_seq, int seq_len) {
     // do decryption
-    printf("Dispatching read of length : %d, pnum: %d\n", seq_len, pnum);
-    if (segment != -1) {
-        dispatchReadSingleSegment(data_seq, seq_len, nullptr, 0);
-    } else {
-        dispatchRead(data_seq, seq_len, nullptr, 0);
-    }
+    printf("Dispatching read of length : %d, pnum: %d, seg: %d\n", seq_len, pnum, segment);
+    dispatchReadSingleSegment(data_seq, seq_len, nullptr, 0);
 }
 
 void ecall_load_data2(char *data1, int len1, char *data2, int len2) {
     // do decryption of both seq here
     printf("Dispatching paired read of length : %d and %d, pnum: %d\n", len1, len2, pnum);
-    if (segment != -1) {
-        dispatchReadSingleSegment(data1, len1, data2, len2);
-    } else {
-        dispatchRead(data1, len1, data2, len2);
-    }
+    dispatchReadSingleSegment(data1, len1, data2, len2);
 }
 
 void ecall_load_bf(unsigned char *data, long len, long bf_len) {
@@ -539,29 +364,16 @@ void ecall_load_bf(unsigned char *data, long len, long bf_len) {
     // }
     // printf("\n");
 
-    std::vector<bool> *bf = new std::vector<bool>();
-    bf->reserve(bf_len);
+    bloom_filter = new std::vector<bool>();
+    bloom_filter->reserve(bf_len);
     for (long i = 0; i < len; i++) {
         unsigned char chr = data[i];
-        for (int b = 7; b > -1 && bf->size() < bf_len; b--) {
-            bf->push_back((chr & (0b00000001 << b)) != 0);
+        for (int b = 7; b > -1 && bloom_filter->size() < bf_len; b--) {
+            bloom_filter->push_back((chr & (0b00000001 << b)) != 0);
         }
     }
-
-    // printf("\n\n Received\n\n");
-    // for (int i = 0; i < 40; i++) {
-    //     printf("%s", bf->at(i) ? "1" : "0");
-    // }
-    //printf("\nAdding to the bloom filters...\n");
-    bloom_filters.push_back(bf);
-    //printf("\nAdded to the bloom filters...\n");
-
-    //printf("Deleting received char\n");
 }
 
 void ecall_print_bf_summary() {
-    printf("No of bloom filters : %d\n", bloom_filters.size());
-    for (int i = 0; i < bloom_filters.size(); i++) {
-        printf("\tSize of bf %ld\n", bloom_filters[i]->size());
-    }
+    printf("\tSize of bf %ld\n", bloom_filter->size());
 }

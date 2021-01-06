@@ -141,16 +141,9 @@ uint64_t MurmurHash64A(const void *key, int len, unsigned int seed) {
     return h;
 }
 
-void filInsert(DispatchCommand &command, std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
+void filInsert(DispatchCommand &command, std::vector<bool> *myFilter, const std::string &bMer) {
     for (int i = 0; i < command.GetNHash(); ++i)
-        (*myFilters[pn])[MurmurHash64A(bMer.c_str(), command.GetBmer(), i) % myFilters[pn]->size()] = true;
-}
-
-bool filContain(DispatchCommand &command, const std::vector<std::vector<bool> *> &myFilters, const unsigned pn, const std::string &bMer) {
-    for (int i = 0; i < command.GetNHash(); ++i)
-        if (!(*myFilters[pn])[MurmurHash64A(bMer.c_str(), command.GetBmer(), i) % myFilters[pn]->size()])
-            return false;
-    return true;
+        (*myFilter)[MurmurHash64A(bMer.c_str(), command.GetBmer(), i) % myFilter->size()] = true;
 }
 
 void getCanon(DispatchCommand &command, std::string &bMer) {
@@ -168,184 +161,53 @@ void getCanon(DispatchCommand &command, std::string &bMer) {
     }
 }
 
-std::vector<std::vector<bool> *> loadFilter(DispatchCommand &command) {
-#ifdef _OPENMP
-    double start = omp_get_wtime();
-#else
+std::vector<bool> *loadFilter(DispatchCommand &command) {
     clock_t sTime = clock();
-#endif
-
-#ifdef _OPENMP
-    unsigned tNum = omp_get_max_threads() > opt::pnum ? opt::pnum : omp_get_max_threads();
-    if (opt::threads < tNum && opt::threads > 0)
-        tNum = opt::threads;
-    std::cerr << "Number of threads=" << tNum << std::endl;
-    omp_set_num_threads(tNum);
-#endif
 
     int pIndex, chunk = 1;
     //begin create filters
-    std::vector<std::vector<bool> *> myFilters(command.GetSegment() == -1 ? command.GetPartitions() : 1);
+    std::vector<bool> *myFilter;
 
     std::cerr << "Loading filters ...\n";
-#pragma omp parallel for shared(myFilters) private(pIndex) schedule(static, chunk)
-    for (pIndex = 0; pIndex < command.GetPartitions(); ++pIndex) {
-        if (pIndex == command.GetSegment()) {  //handel segmenting
-            std::stringstream sstm;
-            sstm << command.GetIndexFolder() << "/";
-            sstm << "mref-" << pIndex + 1 << ".fa";
-            size_t filterSize = command.GetIBits() * getInfo((sstm.str()).c_str(), command.GetBmer());
-            myFilters[pIndex] = new std::vector<bool>();
-            myFilters[pIndex]->resize(filterSize);
-            std::ifstream uFile((sstm.str()).c_str());
+    //handel segmenting
+    std::stringstream sstm;
+    sstm << command.GetIndexFolder() << "/";
+    sstm << "mref-" << command.GetSegment() + 1 << ".fa";
+    size_t filterSize = command.GetIBits() * getInfo((sstm.str()).c_str(), command.GetBmer());
+    myFilter = new std::vector<bool>();
+    myFilter->resize(filterSize);
+    std::ifstream uFile((sstm.str()).c_str());
 
-            std::string pline, line;
-            getline(uFile, pline);
-            while (getline(uFile, pline)) {
-                if (pline[0] != '>')
-                    line += pline;
-                else {
-                    std::transform(line.begin(), line.end(), line.begin(), ::toupper);
-                    long uL = line.length();
-                    for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
-                        std::string bMer = line.substr(j, command.GetBmer());
-                        getCanon(command, bMer);
-                        filInsert(command, myFilters, pIndex, bMer);
-                    }
-                    line.clear();
-                }
-            }
+    std::string pline, line;
+    getline(uFile, pline);
+    while (getline(uFile, pline)) {
+        if (pline[0] != '>')
+            line += pline;
+        else {
             std::transform(line.begin(), line.end(), line.begin(), ::toupper);
             long uL = line.length();
             for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
                 std::string bMer = line.substr(j, command.GetBmer());
                 getCanon(command, bMer);
-                filInsert(command, myFilters, pIndex, bMer);
+                filInsert(command, myFilter, bMer);
             }
-
-            uFile.close();
+            line.clear();
         }
     }
+    std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+    long uL = line.length();
+    for (long j = 0; j < uL - command.GetBmer() + 1; ++j) {
+        std::string bMer = line.substr(j, command.GetBmer());
+        getCanon(command, bMer);
+        filInsert(command, myFilter, bMer);
+    }
+
+    uFile.close();
 
     std::cerr << "Loading BF done!\n";
-#ifdef _OPENMP
-    std::cerr << "Loading in sec: " << omp_get_wtime() - start << "\n";
-#else
     std::cerr << "Running time of loading in sec: " << (double)(clock() - sTime) / CLOCKS_PER_SEC << "\n";
-#endif
-
-    return myFilters;
+    return myFilter;
 }
-
-/*void dispatchRead(const char *libName, const std::vector<std::vector<bool> *> &myFilters) {
-    size_t buffSize = 4000000;
-    std::ofstream rdFiles[opt::pnum];
-    for (int i = 0; i < opt::pnum; ++i) {
-        std::stringstream rstm;
-        if (!opt::fq)
-            rstm << "mreads-" << i + 1 << ".fa";
-        else
-            rstm << "mreads-" << i + 1 << ".fastq";
-        rdFiles[i].open((rstm.str()).c_str());
-    }
-    std::ofstream msFile("lreads.sam");
-    size_t fileNo = 0, readId = 0;
-    std::string readHead, readSeq, readDir, readQual, rName;
-
-    std::cerr << "reading from " << std::string(libName) << std::endl;
-
-    std::ifstream libFile(libName);
-    while (getline(libFile, rName)) {
-        std::ifstream readFile[2];
-        readFile[0].open(rName.c_str());  // taking one of the files
-
-        std::cerr << "opening read file 1" << rName << std::endl;
-
-        if (!opt::se) {
-            getline(libFile, rName);
-            readFile[1].open(rName.c_str());
-            std::cerr << "opening read file 2" << rName << std::endl;
-        }
-        bool readValid = true;
-        while (readValid) {
-            readValid = false;
-            // set up readBuff
-            std::vector<faqRec> readBuffer;  // fixed-size to improve performance
-            while (getline(readFile[fileNo], readHead)) {
-                getline(readFile[fileNo], readSeq);
-                std::transform(readSeq.begin(), readSeq.end(), readSeq.begin(), ::toupper);
-                getline(readFile[fileNo], readDir);
-                getline(readFile[fileNo], readQual);
-                readHead[0] = ':';
-                faqRec rRec;
-                std::ostringstream hstm;
-                if (!opt::fq)
-                    hstm << ">" << readId << readHead;
-                else
-                    hstm << "@" << readId << readHead;
-                rRec.readHead = hstm.str();
-                rRec.readSeq = readSeq;
-                rRec.readQual = readQual;
-                readBuffer.push_back(rRec);
-                if (!opt::se) fileNo = (fileNo + 1) % 2;
-                ++readId;
-                if (readBuffer.size() == buffSize) break;
-
-                std::cout << "--------------------------------" << std::endl;
-
-                std::cout << "readHead : " << readHead << std::endl;
-                std::cout << "readSeq : " << readSeq << std::endl;
-                std::cout << "readDir : " << readDir << std::endl;
-                std::cout << "readQual : " << readQual << std::endl;
-
-                std::cout << "--------------------------------" << std::endl;
-            }
-            if (readBuffer.size() == buffSize) readValid = true;
-
-            //dispatch buffer
-            int pIndex;
-            std::vector<bool> dspRead(buffSize, false);
-#pragma omp parallel for shared(readBuffer, rdFiles, dspRead) private(pIndex)
-            for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
-                for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
-                    faqRec bRead = readBuffer[bIndex];
-                    size_t readLen = bRead.readSeq.length();
-                    //size_t j=0;
-                    for (size_t j = 0; j <= readLen - opt::bmer; j += opt::bmer_step) {
-                        std::string bMer = bRead.readSeq.substr(j, opt::bmer);
-                        getCanon(bMer);
-                        if (filContain(myFilters, pIndex, bMer)) {
-#pragma omp critical
-                            dspRead[bIndex] = true;
-                            if (!opt::fq)
-                                rdFiles[pIndex] << bRead.readHead << "\n"
-                                                << bRead.readSeq << "\n";
-                            else
-                                rdFiles[pIndex] << bRead.readHead << "\n"
-                                                << bRead.readSeq << "\n+\n"
-                                                << bRead.readQual << "\n";
-                            break;
-                        }
-                    }
-                }
-            }  // end dispatch buffer
-            for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
-                if (!dspRead[bIndex])
-                    msFile << readBuffer[bIndex].readHead.substr(1, std::string::npos) << "\t4\t*\t0\t0\t*\t*\t0\t0\t*\t*\n";
-            }
-        }
-        readFile[0].close();
-        if (!opt::se)
-            readFile[1].close();
-    }
-    libFile.close();
-    msFile.close();
-    for (int pIndex = 0; pIndex < opt::pnum; ++pIndex)
-        rdFiles[pIndex].close();
-    std::ofstream imdFile("maxinf", std::ios_base::app);
-    imdFile << readId << "\n";
-    imdFile.close();
-}*/
 
 void binary_write(std::ofstream &fout, const std::vector<bool> *x) {
     std::vector<bool>::size_type n = x->size();
@@ -371,12 +233,8 @@ void binary_read(std::ifstream &fin, std::vector<bool> *x) {
     }
 }
 
-std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
-#ifdef _OPENMP
-    double start = omp_get_wtime();
-#else
+std::vector<bool> *dida_build_bf(DispatchCommand &command) {
     clock_t sTime = clock();
-#endif
 
     bool die = false;
     std::string blPath;
@@ -403,7 +261,7 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
 
     spdlog::info("Bloomfilter location {}", bf_backup_name);
 
-    std::vector<std::vector<bool> *> myFilters(command.GetSegment() == -1 ? command.GetPartitions() : 1);
+    std::vector<bool> *myFilter;
 
     // check the file exists
     std::ifstream bf_file(bf_backup_name.c_str());
@@ -412,31 +270,19 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
         std::ifstream bf_in_file(bf_backup_name.c_str());
         std::cout << "Created if stream. P num : " << command.GetPartitions() << std::endl;
         // if segmentation enabled load only one bf
-        if (command.GetSegment() != -1) {
-            for (int x = 0; x < command.GetPartitions(); x++) {
-                std::vector<bool> *vec_ = new std::vector<bool>();
-                binary_read(bf_in_file, vec_);
-                std::cout << "Loaded a vector of size " << vec_->size() << std::endl;
-                myFilters[x] = vec_;
-            }
-        } else {
-            std::vector<bool> *vec_ = new std::vector<bool>();
-            binary_read(bf_in_file, vec_);
-            std::cout << "Loaded a vector of size in segment mode" << vec_->size() << std::endl;
-            myFilters[0] = vec_;
-        }
+        myFilter = new std::vector<bool>();
+        binary_read(bf_in_file, myFilter);
+        std::cout << "Loaded a vector of size in segment mode" << myFilter->size() << std::endl;
         bf_in_file.close();
         std::cout << "loaded bloom filters..." << std::endl;
     } else {
         bf_file.close();
-        myFilters = loadFilter(command);
+        myFilter = loadFilter(command);
 
         // write to file
         std::cout << "backing up bloom filters..." << std::endl;
         std::ofstream bf_out_file(bf_backup_name.c_str());
-        for (const std::vector<bool> *vec_ : myFilters) {
-            binary_write(bf_out_file, vec_);
-        }
+        binary_write(bf_out_file, myFilter);
         bf_out_file.close();
         std::cout << "bloom filter backed up..." << std::endl;
     }
@@ -444,15 +290,9 @@ std::vector<std::vector<bool> *> dida_build_bf(DispatchCommand &command) {
     // move to sgx
     //dispatchRead(libName, myFilters);
 
-#ifdef _OPENMP
-    std::cerr << "Running time in sec: " << omp_get_wtime() - start << "\n";
-#else
-    std::cerr << "Running time in sec: " << (double)(clock() - sTime) / CLOCKS_PER_SEC << "\n";
-#endif
+    std::cout << "Returning vectors of size : " << myFilter->size() << std::endl;
 
-    std::cout << "Returning vectors of size : " << myFilters.size() << std::endl;
-
-    return myFilters;
+    return myFilter;
 }
 
 // void dida_do_dsp(std::string libName, std::vector<std::vector<bool> *> bf) {
