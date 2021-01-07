@@ -274,7 +274,7 @@ void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, i
                 std::string bMer = bRead->readSeq.substr(j, bmer);
                 //printf("Get canon...\n");
                 getCanon(bMer);
-                //printf("Checking bloomfilter v2... %s, pNum : %d \n", bMer, pIndex);
+                printf("Checking bloomfilter %s", bMer);
                 // todo optimize here
                 if (filContain(bMer)) {
                     //printf("Checked bloomfilter...\n");
@@ -316,6 +316,10 @@ void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, i
     std::string file_name = "mread-" + std::to_string(segment + 1) + ".fa";
     printf("Doing ocall to write to file : %s, Size : %d\n", file_name, rdFile->size());
     print_file(file_name.c_str(), 0, rdFile->c_str());
+
+    delete rdFile;
+    // delete bf
+    delete bloom_filter;
 }
 
 void ecall_start_dispatch(int para_bmer,
