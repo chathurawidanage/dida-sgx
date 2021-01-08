@@ -103,6 +103,7 @@ void dsp(DispatchCommand &dispatch_command, sgx_enclave_id_t global_eid) {
         // single ended
 
         // reading file
+        std::cout << "Dispatching file " << dispatch_command.GetInput1() << std::endl;
 
         std::ifstream input_file(dispatch_command.GetInput1());
 
