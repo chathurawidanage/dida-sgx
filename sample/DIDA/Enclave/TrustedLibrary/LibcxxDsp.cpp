@@ -274,7 +274,6 @@ void dispatchReadSingleSegment(char *sequence1, int seq1_len, char *sequence2, i
                 std::string bMer = bRead->readSeq.substr(j, bmer);
                 //printf("Get canon...\n");
                 getCanon(bMer);
-                printf("Checking bloomfilter %s", bMer);
                 // todo optimize here
                 if (filContain(bMer)) {
                     //printf("Checked bloomfilter...\n");
