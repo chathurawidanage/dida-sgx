@@ -241,12 +241,15 @@ int SGX_CDECL main(int argc, char *argv[]) {
             auto dispatch_command = DispatchCommand(msg);
             dispatch_command.Parse(&validation_code, &validation_msg);
 
+            printf("Command parsed...");
             if (validation_code == 0) {
+                printf("Validation passed!");
                 destination_dir = dispatch_command.GetDestination();
                 dsp(dispatch_command, global_eid);
                 destination_dir = "";
                 worker.Send(msg_cmd, create_response(0, ""));
             } else {
+                printf("Validation failed %s", validation_msg);
                 worker.Send(msg_cmd, validation_msg);
             }
         } else if (dida_command.compare(dida_mrg) == 0) {
