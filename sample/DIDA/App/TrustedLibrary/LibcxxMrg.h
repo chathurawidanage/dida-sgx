@@ -1,3 +1,4 @@
 #include "sgx_urts.h"
+#include "commands.hpp"
 
-void mrg(int argc, char *argv[], sgx_enclave_id_t global_eid);
+void mrg(MergeCommand &merge_command, sgx_enclave_id_t global_eid);

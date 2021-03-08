@@ -23,14 +23,14 @@ void getInf(unsigned &maxCont, unsigned &maxRead) {
     printf("Read maxinf %d, %d\n", maxCont, maxRead);
 }
 
-void mrg(int argc, char *argv[], sgx_enclave_id_t global_eid) {
+void mrg(MergeCommand &merge_command, sgx_enclave_id_t global_eid) {
     printf("Starting merging...\n");
 
     unsigned int maxCount = 0;
     unsigned int maxRead = 0;
-    int pNum = std::atoi(argv[3]);
+    int pNum = merge_command.GetPartitions();
 
-    std::string aligner = std::string(argv[5]);
+    auto aligner = merge_command.GetAligner();
 
     printf("Partitions : %d\nAligner : %s\n", pNum, aligner.c_str());
 

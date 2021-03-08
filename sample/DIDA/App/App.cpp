@@ -249,11 +249,12 @@ int SGX_CDECL main(int argc, char *argv[]) {
                 destination_dir = "";
                 worker.Send(msg_cmd, create_response(0, ""));
             } else {
-                printf("Validation failed %s", validation_msg);
+                printf("Validation failed %s", validation_msg.c_str());
                 worker.Send(msg_cmd, validation_msg);
             }
         } else if (dida_command.compare(dida_mrg) == 0) {
-            mrg(argc, argv, global_eid);
+            auto mrg_command = MergeCommand(msg);
+            mrg(mrg_command, global_eid);
         } else {
             //unknown command
             printf("Unknown command %s", dida_command.c_str());
