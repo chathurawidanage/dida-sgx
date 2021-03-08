@@ -12,7 +12,7 @@ void getInf(std::string &path, unsigned &maxCont, unsigned &maxRead) {
   if (infoFile.good()) {
     infoFile >> maxCont >> maxRead;
   } else {
-    std::cerr << "Info file not exist!\n";
+    std::cerr << "Info file not exist at " << (path + "/maxinf\n");
     exit(1);
   }
   if (maxCont == 0 || maxRead == 0) {
